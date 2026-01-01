@@ -1,13 +1,13 @@
 ﻿---
 title: "List: Medium"
-excerpt: "Liste mit Datum-Box und Beschreibung - ideal fÃ¼r Event-Ãœbersichten."
+excerpt: "Kompakte Listendarstellung mit ausgewogener Balance."
 parent: "demos"
 order: 2
 ---
 
 <div class="demo-header">
-<h1>ðŸ“‹ List: Medium</h1>
-<p class="demo-description">Liste mit Datum-Box, Beschreibung und Services - perfekt fÃ¼r Event-Ãœbersichten und Archiv-Seiten.</p>
+<h1> List: Medium</h1>
+<p class="demo-description">Kompakte Listendarstellung - perfekt für Event-Übersichten und Terminlisten.</p>
 </div>
 
 <div class="demo-preview">
@@ -15,39 +15,30 @@ order: 2
 </div>
 
 <div class="demo-info">
-<h2>âœ¨ Features</h2>
+<h2> Features</h2>
 <ul class="feature-list">
-<li><strong>Datum-Box</strong> - GroÃŸer Tag/Monat-Indikator links</li>
-<li><strong>Beschreibungstext</strong> - Kurze Event-Info direkt sichtbar</li>
-<li><strong>Services anzeigen</strong> - Personen und Dienste pro Event</li>
-<li><strong>Kalender-Badge</strong> - Farbige Kalender-Zuordnung</li>
-<li><strong>Responsive</strong> - Mobile-optimiert mit Touch-Support</li>
+<li><strong>Kompakt</strong> - Optimale Balance zwischen Details und Übersicht</li>
+<li><strong>Services</strong> - Zeigt zugeordnete Dienste an</li>
+<li><strong>Datum-Format</strong> - Nutzt WordPress Datumseinstellungen</li>
+<li><strong>Responsive</strong> - Mobile-optimiert</li>
 </ul>
 
-<h2>ðŸ“‹ Verwendung</h2>
-<pre><code>[cts_list view="medium" limit="10"]</code></pre>
-
-<h2>âš™ï¸ Parameter</h2>
+<h2> Parameter</h2>
 <table class="params-table">
 <thead>
 <tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Standard</th></tr>
 </thead>
 <tbody>
-<tr><td><code>view</code></td><td>string</td><td>View-Typ (medium)</td><td>â€“</td></tr>
-<tr><td><code>calendar</code></td><td>string</td><td>Kommagetrennte Kalender-IDs</td><td>alle</td></tr>
-<tr><td><code>limit</code></td><td>int</td><td>Max. Anzahl Events</td><td>20</td></tr>
-<tr><td><code>show_services</code></td><td>bool</td><td>Services anzeigen</td><td>true</td></tr>
-<tr><td><code>from</code></td><td>string</td><td>Start-Datum (Y-m-d)</td><td>heute</td></tr>
-<tr><td><code>to</code></td><td>string</td><td>End-Datum (Y-m-d)</td><td>+90 Tage</td></tr>
-<tr><td><code>class</code></td><td>string</td><td>ZusÃ¤tzliche CSS-Klasse</td><td>â€“</td></tr>
+<tr><td><code>view</code></td><td>string</td><td>View-Typ (medium)</td><td></td></tr>
+<tr><td><code>limit</code></td><td>int</td><td>Max. Anzahl Events</td><td>10</td></tr>
+<tr><td><code>show_services</code></td><td>bool</td><td>Dienste anzeigen</td><td>true</td></tr>
 </tbody>
 </table>
 
-<h2>ðŸŽ¯ Einsatzbereiche</h2>
+<h2> Einsatzbereiche</h2>
 <ul class="use-cases">
-<li><strong>Event-Ãœbersicht</strong> - Hauptseite mit allen kommenden Veranstaltungen</li>
-<li><strong>Kategorie-Seiten</strong> - Gefilterte Listen nach Veranstaltungstyp</li>
-<li><strong>Archiv-Seiten</strong> - Vergangene Events mit Details</li>
-<li><strong>Sidebar-Widget</strong> - Kompakte Next-Events-Anzeige</li>
+<li><strong>Event-Übersichten</strong> - Kompakte Terminlisten</li>
+<li><strong>Sidebar Widgets</strong> - Platzsparende Listen</li>
+<li><strong>Dienst-Pläne</strong> - Mit Service-Zuordnungen</li>
 </ul>
 </div>
