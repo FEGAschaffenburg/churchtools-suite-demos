@@ -1,174 +1,62 @@
----
+﻿---
 title: "Slider: Type 1"
-shortcode: '[cts_slider view="type-1" autoplay="true"]'
-category: "Slider"
-difficulty: "Mittel"
-excerpt: "Standard Image-Slider mit Autoplay für Hero-Bereiche und Event-Highlights"
-order: 1
+excerpt: "Standard Fullwidth-Slider mit Autoplay - perfekt fÃ¼r Homepage-Header."
+parent: "demos"
+order: 4
 ---
 
-# Slider: Type 1
+<div class="demo-header">
+<h1>ðŸŽ¬ Slider: Type 1</h1>
+<p class="demo-description">Standard Fullwidth-Slider mit Autoplay und Touch-Support - ideal fÃ¼r Homepage-Hero-Bereiche und Event-Highlights.</p>
+</div>
 
-Standard Fullwidth-Slider mit automatischem Bildwechsel - perfekt für Hero-Sections.
+<div class="demo-preview">
+[cts_slider view="type-1" autoplay="true" interval="6000" limit="5"]
+</div>
 
-## Live Demo
+<div class="demo-info">
+<h2>âœ¨ Features</h2>
+<ul class="feature-list">
+<li><strong>Autoplay</strong> - Automatisches Durchlaufen der Slides</li>
+<li><strong>Touch Support</strong> - Wischen auf mobilen GerÃ¤ten</li>
+<li><strong>Navigation</strong> - Pfeile und Dots fÃ¼r manuelle Steuerung</li>
+<li><strong>Fullwidth</strong> - 100% Breite, responsive HÃ¶he</li>
+<li><strong>Overlays</strong> - Gradient-Overlays fÃ¼r bessere Lesbarkeit</li>
+<li><strong>Transitions</strong> - Sanfte Fade-Animationen</li>
+</ul>
 
-[cts_slider view="type-1" limit="5" autoplay="true" interval="5000"]
+<h2>ðŸ“‹ Verwendung</h2>
+<pre><code>[cts_slider view="type-1" autoplay="true" interval="6000"]</code></pre>
 
-## Features
+<h2>âš™ï¸ Parameter</h2>
+<table class="params-table">
+<thead>
+<tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Standard</th></tr>
+</thead>
+<tbody>
+<tr><td><code>view</code></td><td>string</td><td>View-Typ (type-1)</td><td>â€“</td></tr>
+<tr><td><code>autoplay</code></td><td>bool</td><td>Automatisches Abspielen</td><td>false</td></tr>
+<tr><td><code>interval</code></td><td>int</td><td>Intervall in ms (bei autoplay)</td><td>5000</td></tr>
+<tr><td><code>calendar</code></td><td>string</td><td>Kommagetrennte Kalender-IDs</td><td>alle</td></tr>
+<tr><td><code>limit</code></td><td>int</td><td>Max. Anzahl Slides</td><td>10</td></tr>
+<tr><td><code>class</code></td><td>string</td><td>ZusÃ¤tzliche CSS-Klasse</td><td>â€“</td></tr>
+</tbody>
+</table>
 
-- **Autoplay**: Automatischer Bildwechsel
-- **Touch-Support**: Swipe-Gesten auf Mobile
-- **Navigation**: Vor/Zurück-Pfeile + Dots
-- **Fullwidth**: 100% Breite für maximale Wirkung
-- **Overlays**: Text-Overlays auf Bildern
-- **Transitions**: Smooth Fade-Effekte
+<h2>âš¡ JavaScript API</h2>
+<pre><code>// Slider steuern
+const slider = document.querySelector('.cts-slider');
+slider.ctsSlider.next();      // NÃ¤chste Slide
+slider.ctsSlider.prev();      // Vorherige Slide
+slider.ctsSlider.goTo(2);     // Zu Slide 2
+slider.ctsSlider.pause();     // Autoplay pausieren
+slider.ctsSlider.play();      // Autoplay starten</code></pre>
 
-## Verwendung
-
-### Basis-Shortcode
-
-```shortcode
-[cts_slider view="type-1"]
-```
-
-### Mit Autoplay
-
-```shortcode
-[cts_slider view="type-1" autoplay="true" interval="5000"]
-```
-
-### Mit Kalender-Filter
-
-```shortcode
-[cts_slider view="type-1" calendar="2,3" limit="8"]
-```
-
-## Parameter
-
-| Parameter | Typ | Beschreibung | Standard |
-|-----------|-----|--------------|----------|
-| `view` | string | View-Typ (type-1) | - |
-| `limit` | int | Max. Anzahl Slides | 5 |
-| `autoplay` | bool | Auto-Play aktivieren | true |
-| `interval` | int | Intervall in ms | 5000 |
-| `calendar` | string | Kommaseparierte Kalender-IDs | alle |
-| `class` | string | Zusätzliche CSS-Klasse | - |
-
-## Einsatzbereiche
-
-- **Homepage Hero**: Hauptbereich mit Featured Events
-- **Event-Highlight**: Top-Veranstaltungen im Fokus
-- **Bildergalerie**: Event-Impressionen im Slider
-- **Landingpages**: Marketing-orientierte Event-Präsentation
-
-## Best Practices
-
-### Autoplay-Timing
-```shortcode
-[cts_slider view="type-1" autoplay="true" interval="6000"]
-```
-6 Sekunden = optimale Balance zwischen Lesbarkeit und Dynamik.
-
-### Slide-Anzahl begrenzen
-```shortcode
-[cts_slider view="type-1" limit="5"]
-```
-Max. 5 Slides für bessere Performance und UX.
-
-### High-Priority Events
-```shortcode
-[cts_slider view="type-1" calendar="1" from="today" to="+14 days" limit="3"]
-```
-Nur wichtige Events der nächsten 2 Wochen.
-
-## CSS Customization
-
-### Slider-Höhe
-
-```css
-.cts-slider-type-1 .cts-slide {
-    height: 600px; /* Standard: 500px */
-}
-
-@media (max-width: 768px) {
-    .cts-slider-type-1 .cts-slide {
-        height: 400px;
-    }
-}
-```
-
-### Overlay-Styling
-
-```css
-.cts-slider-type-1 .cts-slide-overlay {
-    background: linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0) 0%,
-        rgba(0, 0, 0, 0.7) 100%
-    );
-}
-```
-
-### Navigation-Buttons
-
-```css
-.cts-slider-type-1 .cts-slider-prev,
-.cts-slider-type-1 .cts-slider-next {
-    background: rgba(255, 255, 255, 0.9);
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-}
-```
-
-### Dots-Position
-
-```css
-.cts-slider-type-1 .cts-slider-dots {
-    bottom: 30px;
-    gap: 12px;
-}
-
-.cts-slider-type-1 .cts-slider-dot {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    background: rgba(255, 255, 255, 0.5);
-}
-
-.cts-slider-type-1 .cts-slider-dot.active {
-    background: white;
-    transform: scale(1.3);
-}
-```
-
-## JavaScript API
-
-### Manuelle Steuerung
-
-```javascript
-// Slider-Instanz holen
-const slider = document.querySelector('.cts-slider-type-1');
-
-// Nächstes Slide
-slider.ctsSlidernext();
-
-// Vorheriges Slide
-slider.ctsSlider.prev();
-
-// Zu Slide 3 springen
-slider.ctsSlider.goTo(2); // 0-basiert
-
-// Autoplay pausieren
-slider.ctsSlider.pause();
-
-// Autoplay fortsetzen
-slider.ctsSlider.play();
-```
-
-## Related Demos
-
-- [Slider: Type 3](/demos/slider-type-3/) - Slider mit Thumbnails
-- [Carousel: Type 1](/demos/carousel-type-1/) - Carousel-Variante
-- [Cover: Modern](/demos/cover-modern/) - Static Hero Alternative
+<h2>ðŸŽ¯ Einsatzbereiche</h2>
+<ul class="use-cases">
+<li><strong>Homepage Hero</strong> - GroÃŸe Event-PrÃ¤sentation im Header</li>
+<li><strong>Event-Highlights</strong> - Featured Events rotierend anzeigen</li>
+<li><strong>Image Gallery</strong> - Event-Bilder als Slideshow</li>
+<li><strong>Landing Pages</strong> - Fullscreen Event-PrÃ¤sentationen</li>
+</ul>
+</div>

@@ -1,151 +1,65 @@
----
+﻿---
 title: "Grid: Modern"
-shortcode: '[cts_grid view="modern" columns="3"]'
-category: "Grid"
-difficulty: "Einfach"
-excerpt: "Modernes Grid-Layout mit Cards, Hover-Effekten und flexiblen Spalten"
-order: 2
+excerpt: "Moderne Karten-Ansicht mit Hover-Effekten - ideal fÃ¼r visuelle Event-Darstellung."
+parent: "demos"
+order: 3
 ---
 
-# Grid: Modern
+<div class="demo-header">
+<h1>ðŸŽ¨ Grid: Modern</h1>
+<p class="demo-description">Moderne Karten-Ansicht mit Box-Shadows und Hover-Animation - perfekt fÃ¼r Event-Galerien und Homepage-Grids.</p>
+</div>
 
-Modernes Card-Grid mit Shadow-Effekten und responsivem Layout.
+<div class="demo-preview">
+[cts_grid view="modern" columns="3" limit="6"]
+</div>
 
-## Live Demo
+<div class="demo-info">
+<h2>âœ¨ Features</h2>
+<ul class="feature-list">
+<li><strong>Card Design</strong> - Moderne Karten mit Box-Shadows</li>
+<li><strong>Hover-Animation</strong> - Sanfte Transform-Effekte</li>
+<li><strong>2-4 Spalten</strong> - Flexibles Spalten-Layout</li>
+<li><strong>Responsive</strong> - Auto-Anpassung auf Tablets/Mobil</li>
+<li><strong>Top-Border</strong> - Farbige Kalender-Akzente</li>
+</ul>
 
-[cts_grid view="modern" columns="3" limit="9"]
+<h2>ðŸ“‹ Verwendung</h2>
+<pre><code>[cts_grid view="modern" columns="3" limit="6"]</code></pre>
 
-## Features
+<h2>âš™ï¸ Parameter</h2>
+<table class="params-table">
+<thead>
+<tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Standard</th></tr>
+</thead>
+<tbody>
+<tr><td><code>view</code></td><td>string</td><td>View-Typ (modern)</td><td>â€“</td></tr>
+<tr><td><code>columns</code></td><td>int</td><td>Anzahl Spalten (2-4)</td><td>3</td></tr>
+<tr><td><code>calendar</code></td><td>string</td><td>Kommagetrennte Kalender-IDs</td><td>alle</td></tr>
+<tr><td><code>limit</code></td><td>int</td><td>Max. Anzahl Events</td><td>20</td></tr>
+<tr><td><code>from</code></td><td>string</td><td>Start-Datum (Y-m-d)</td><td>heute</td></tr>
+<tr><td><code>to</code></td><td>string</td><td>End-Datum (Y-m-d)</td><td>+90 Tage</td></tr>
+<tr><td><code>class</code></td><td>string</td><td>ZusÃ¤tzliche CSS-Klasse</td><td>â€“</td></tr>
+</tbody>
+</table>
 
-- **Card-Design**: Jedes Event als moderne Card
-- **Box-Shadows**: Subtile Schatten für Tiefeneffekt
-- **Hover-Animation**: Transform-Effekt beim Drüberfahren
-- **Flexible Columns**: 2-4 Spalten konfigurierbar
-- **Responsive**: Auto-Anpassung für Mobile
-- **Calendar Colors**: Farbige Top-Border nach Kalender
+<h2>ðŸ“± Responsive Spalten</h2>
+<table class="params-table">
+<thead>
+<tr><th>Bildschirm</th><th>4 Spalten</th><th>3 Spalten</th><th>2 Spalten</th></tr>
+</thead>
+<tbody>
+<tr><td>Desktop (>1200px)</td><td>4</td><td>3</td><td>2</td></tr>
+<tr><td>Tablet (768-1200px)</td><td>3</td><td>2</td><td>2</td></tr>
+<tr><td>Mobile (<768px)</td><td>1</td><td>1</td><td>1</td></tr>
+</tbody>
+</table>
 
-## Verwendung
-
-### Basis-Shortcode
-
-```shortcode
-[cts_grid view="modern" columns="3"]
-```
-
-### 4-Spalten Layout
-
-```shortcode
-[cts_grid view="modern" columns="4" limit="12"]
-```
-
-### Mit Kalender-Filter
-
-```shortcode
-[cts_grid view="modern" columns="3" calendar="2,3" limit="9"]
-```
-
-## Parameter
-
-| Parameter | Typ | Beschreibung | Standard |
-|-----------|-----|--------------|----------|
-| `view` | string | View-Typ (modern) | - |
-| `columns` | int | Spaltenanzahl (2-4) | 3 |
-| `calendar` | string | Kommaseparierte Kalender-IDs | alle |
-| `limit` | int | Max. Anzahl Events | 20 |
-| `from` | string | Start-Datum (Y-m-d) | heute |
-| `to` | string | End-Datum (Y-m-d) | +90 Tage |
-| `class` | string | Zusätzliche CSS-Klasse | - |
-
-## Spalten-Logik
-
-| Spalten | Desktop (>1200px) | Tablet (768-1200px) | Mobile (<768px) |
-|---------|-------------------|---------------------|-----------------|
-| 2 | 2 | 2 | 1 |
-| 3 | 3 | 2 | 1 |
-| 4 | 4 | 3 | 1 |
-
-## Einsatzbereiche
-
-- **Event-Galerie**: Visuelle Übersicht mit Bildern
-- **Kategorie-Seiten**: Mehrere Event-Typen nebeneinander
-- **Homepage-Grid**: Featured Events im Hero-Bereich
-- **Archive**: Übersicht vergangener Veranstaltungen
-
-## Best Practices
-
-### Performance-Optimierung
-```shortcode
-[cts_grid view="modern" columns="3" limit="9"]
-```
-Limit auf Spalten * Zeilen setzen (z.B. 3×3 = 9).
-
-### Responsive Breakpoints
-```shortcode
-<!-- Desktop: 4 Spalten -->
-[cts_grid view="modern" columns="4" limit="8" class="desktop-only"]
-
-<!-- Tablet: 3 Spalten -->
-[cts_grid view="modern" columns="3" limit="6" class="tablet-only"]
-
-<!-- Mobile: 1 Spalte -->
-[cts_grid view="modern" columns="2" limit="4" class="mobile-only"]
-```
-
-### Kalender-Kategorien
-```shortcode
-<!-- Gottesdienste -->
-[cts_grid view="modern" columns="2" calendar="1" limit="6"]
-
-<!-- Jugend-Events -->
-[cts_grid view="modern" columns="3" calendar="5,6" limit="9"]
-```
-
-## CSS Customization
-
-### Card-Styling
-
-```css
-.cts-grid-modern .cts-event-card {
-    border-radius: 16px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    transition: all 0.3s ease;
-}
-
-.cts-grid-modern .cts-event-card:hover {
-    transform: translateY(-8px);
-    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
-}
-```
-
-### Top-Border Farben
-
-```css
-.cts-grid-modern .cts-event-card {
-    border-top: 4px solid var(--calendar-color);
-}
-```
-
-### Spalten-Gaps
-
-```css
-.cts-grid-modern .cts-grid-container {
-    gap: 24px; /* Standard: 20px */
-}
-```
-
-### Responsive Override
-
-```css
-@media (max-width: 768px) {
-    .cts-grid-modern .cts-grid-container {
-        grid-template-columns: 1fr;
-        gap: 16px;
-    }
-}
-```
-
-## Related Demos
-
-- [Grid: Simple](/demos/grid-simple/) - Minimalistisches Grid
-- [Grid: Colorful](/demos/grid-colorful/) - Farbiges Grid mit Accents
-- [List: Medium](/demos/list-medium/) - Listen-Alternative
+<h2>ðŸŽ¯ Einsatzbereiche</h2>
+<ul class="use-cases">
+<li><strong>Event-Galerie</strong> - Visuelle Ãœbersicht aller Veranstaltungen</li>
+<li><strong>Kategorie-Seiten</strong> - Grid-Layout fÃ¼r Event-Kategorien</li>
+<li><strong>Homepage-Grid</strong> - Featured Events auf Startseite</li>
+<li><strong>Archiv-Seiten</strong> - Kompakte Ãœbersicht vergangener Events</li>
+</ul>
+</div>

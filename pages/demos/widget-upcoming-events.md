@@ -1,239 +1,67 @@
----
+﻿---
 title: "Widget: Upcoming Events"
-shortcode: '[cts_widget view="upcoming-events" limit="5"]'
-category: "Widget"
-difficulty: "Einfach"
-excerpt: "Kompakte Sidebar-Widget für die nächsten 5 Events - perfekt für Sidebars"
-order: 1
+excerpt: "Kompaktes Sidebar-Widget fÃ¼r die nÃ¤chsten 5 Events."
+parent: "demos"
+order: 6
 ---
 
-# Widget: Upcoming Events
+<div class="demo-header">
+<h1>ðŸ“¦ Widget: Upcoming Events</h1>
+<p class="demo-description">Kompaktes Sidebar-Widget mit den nÃ¤chsten Events - perfekt fÃ¼r Sidebars, Footer-Bereiche und Dashboard-Widgets.</p>
+</div>
 
-Kompaktes Sidebar-Widget mit den nächsten anstehenden Events - ideal für WordPress Sidebars.
-
-## Live Demo
-
+<div class="demo-preview">
 [cts_widget view="upcoming-events" limit="5"]
+</div>
 
-## Features
+<div class="demo-info">
+<h2>âœ¨ Features</h2>
+<ul class="feature-list">
+<li><strong>Kompakt</strong> - Optimiert fÃ¼r schmale Bereiche (min. 300px)</li>
+<li><strong>NÃ¤chste Events</strong> - Zeigt nur kommende Veranstaltungen</li>
+<li><strong>Datum-Badge</strong> - Farbige Datum-Anzeige</li>
+<li><strong>Quick Info</strong> - Titel, Zeit und Ort auf einen Blick</li>
+<li><strong>Kalender-Farben</strong> - Visuelle Kalender-Zuordnung</li>
+<li><strong>Event-Links</strong> - Klickbar zu Event-Details</li>
+</ul>
 
-- **Kompakt**: Optimiert für schmale Sidebars (300px)
-- **Next Events**: Zeigt kommende Termine chronologisch
-- **Date Badge**: Kleines Datumselement
-- **Quick Info**: Titel, Zeit, Ort
-- **Calendar Colors**: Farbliche Kategorisierung
-- **Link**: Jedes Event verlinkbar
+<h2>ðŸ“‹ Verwendung</h2>
+<pre><code>[cts_widget view="upcoming-events" limit="5"]</code></pre>
 
-## Verwendung
+<h2>âš™ï¸ Parameter</h2>
+<table class="params-table">
+<thead>
+<tr><th>Parameter</th><th>Typ</th><th>Beschreibung</th><th>Standard</th></tr>
+</thead>
+<tbody>
+<tr><td><code>view</code></td><td>string</td><td>View-Typ (upcoming-events)</td><td>â€“</td></tr>
+<tr><td><code>limit</code></td><td>int</td><td>Max. Anzahl Events</td><td>5</td></tr>
+<tr><td><code>calendar</code></td><td>string</td><td>Kommagetrennte Kalender-IDs</td><td>alle</td></tr>
+<tr><td><code>from</code></td><td>string</td><td>Start-Datum (Y-m-d)</td><td>heute</td></tr>
+<tr><td><code>to</code></td><td>string</td><td>End-Datum (Y-m-d)</td><td>+30 Tage</td></tr>
+<tr><td><code>class</code></td><td>string</td><td>ZusÃ¤tzliche CSS-Klasse</td><td>â€“</td></tr>
+</tbody>
+</table>
 
-### Basis-Shortcode
-
-```shortcode
-[cts_widget view="upcoming-events" limit="5"]
-```
-
-### Mit Kalender-Filter
-
-```shortcode
-[cts_widget view="upcoming-events" calendar="2,3" limit="3"]
-```
-
-### Nächste Woche
-
-```shortcode
-[cts_widget view="upcoming-events" from="today" to="+7 days" limit="10"]
-```
-
-## Parameter
-
-| Parameter | Typ | Beschreibung | Standard |
-|-----------|-----|--------------|----------|
-| `view` | string | View-Typ (upcoming-events) | - |
-| `limit` | int | Max. Anzahl Events | 5 |
-| `calendar` | string | Kommaseparierte Kalender-IDs | alle |
-| `from` | string | Start-Datum (Y-m-d) | heute |
-| `to` | string | End-Datum (Y-m-d) | +30 Tage |
-| `class` | string | Zusätzliche CSS-Klasse | - |
-
-## Einsatzbereiche
-
-- **Sidebar-Widget**: Nächste Events in Blog-Sidebar
-- **Footer-Widget**: Terminvorschau im Footer
-- **Dashboard**: Widget für WordPress-Dashboard
-- **Mobile-Menu**: Termine im Hamburger-Menü
-
-## Best Practices
-
-### Optimale Anzahl
-```shortcode
-[cts_widget view="upcoming-events" limit="5"]
-```
-5 Events = optimale Balance zwischen Übersicht und Vollständigkeit.
-
-### Kategorie-Filter
-```shortcode
-<!-- Nur Gottesdienste -->
-[cts_widget view="upcoming-events" calendar="1" limit="3"]
-
-<!-- Jugend-Events -->
-[cts_widget view="upcoming-events" calendar="5,6" limit="5"]
-```
-
-### Zeitraum-Begrenzung
-```shortcode
-[cts_widget view="upcoming-events" to="+14 days" limit="10"]
-```
-Nur nächste 2 Wochen für aktuellere Vorschau.
-
-## Widget-Areas
-
-### Sidebar Registration
-
-```php
-// In functions.php
+<h2>ðŸŽ¨ Widget-Bereiche</h2>
+<pre><code>// In functions.php registrieren
 register_sidebar(array(
-    'name' => 'Events Sidebar',
-    'id' => 'events-sidebar',
-    'before_widget' => '<div class="widget %2$s">',
-    'after_widget' => '</div>',
-    'before_title' => '<h3 class="widget-title">',
-    'after_title' => '</h3>',
+  'name' => 'Sidebar Events',
+  'id' => 'sidebar-events',
+  'before_widget' => '&lt;div class="widget"&gt;',
+  'after_widget' => '&lt;/div&gt;',
 ));
-```
 
-### Template Usage
+// In Template verwenden
+&lt;?php if (is_active_sidebar('sidebar-events')) {
+  dynamic_sidebar('sidebar-events');
+} ?&gt;</code></pre>
 
-```php
-// In sidebar.php
-<aside class="sidebar">
-    <?php if (is_active_sidebar('events-sidebar')) : ?>
-        <?php dynamic_sidebar('events-sidebar'); ?>
-    <?php endif; ?>
-    
-    <!-- Fallback Widget -->
-    <div class="widget">
-        <h3>Nächste Termine</h3>
-        <?php echo do_shortcode('[cts_widget view="upcoming-events"]'); ?>
-    </div>
-</aside>
-```
-
-## CSS Customization
-
-### Widget-Container
-
-```css
-.cts-widget-upcoming-events {
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-    padding: 20px;
-}
-
-.cts-widget-upcoming-events h3 {
-    font-size: 18px;
-    font-weight: 600;
-    margin: 0 0 16px 0;
-    padding-bottom: 12px;
-    border-bottom: 2px solid #e5e7eb;
-}
-```
-
-### Event-Items
-
-```css
-.cts-widget-upcoming-events .cts-event-item {
-    display: flex;
-    gap: 12px;
-    padding: 12px 0;
-    border-bottom: 1px solid #f3f4f6;
-    transition: background 0.2s;
-}
-
-.cts-widget-upcoming-events .cts-event-item:hover {
-    background: rgba(102, 126, 234, 0.05);
-}
-
-.cts-widget-upcoming-events .cts-event-item:last-child {
-    border-bottom: none;
-}
-```
-
-### Date-Badge
-
-```css
-.cts-widget-upcoming-events .cts-date-badge {
-    flex-shrink: 0;
-    width: 50px;
-    height: 50px;
-    background: var(--calendar-color, #667eea);
-    color: white;
-    border-radius: 6px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.cts-widget-upcoming-events .cts-date-day {
-    font-size: 20px;
-    font-weight: 700;
-    line-height: 1;
-}
-
-.cts-widget-upcoming-events .cts-date-month {
-    font-size: 11px;
-    text-transform: uppercase;
-    margin-top: 2px;
-}
-```
-
-### Event-Info
-
-```css
-.cts-widget-upcoming-events .cts-event-info {
-    flex: 1;
-    min-width: 0; /* Für text-overflow */
-}
-
-.cts-widget-upcoming-events .cts-event-title {
-    font-size: 14px;
-    font-weight: 600;
-    margin: 0 0 4px 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.cts-widget-upcoming-events .cts-event-time {
-    font-size: 12px;
-    color: #6b7280;
-}
-```
-
-## Responsive Behavior
-
-### Mobile (< 768px)
-
-```css
-@media (max-width: 768px) {
-    .cts-widget-upcoming-events {
-        padding: 16px;
-    }
-    
-    .cts-widget-upcoming-events .cts-date-badge {
-        width: 40px;
-        height: 40px;
-    }
-    
-    .cts-widget-upcoming-events .cts-event-title {
-        font-size: 13px;
-    }
-}
-```
-
-## Related Demos
-
-- [Widget: Calendar Widget](/demos/widget-calendar-widget/) - Mini-Kalender
-- [Widget: Countdown](/demos/widget-countdown-widget/) - Countdown-Widget
-- [List: Classic](/demos/list-classic/) - Vollständige Listenansicht
+<h2>ðŸŽ¯ Einsatzbereiche</h2>
+<ul class="use-cases">
+<li><strong>Sidebar Widget</strong> - Klassische WordPress-Sidebar</li>
+<li><strong>Footer Widget</strong> - Event-Ãœbersicht im Footer</li>
+<li><strong>Dashboard</strong> - Admin-Dashboard Widget</li>
+<li><strong>Mobile MenÃ¼</strong> - Events in mobilem Dropdown</li>
+</ul>
+</div>
