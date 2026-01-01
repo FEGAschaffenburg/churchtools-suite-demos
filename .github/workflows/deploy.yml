@@ -1,0 +1,93 @@
+name: Deploy Demo Site
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch: # Manual trigger
+
+env:
+  WP_PATH: ${{ secrets.WP_PATH }}
+  DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+  DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+
+jobs:
+  deploy:
+    name: Deploy to WordPress
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+      - name: Add server to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          
+      - name: Deploy theme
+        run: |
+          echo "Deploying theme to WordPress..."
+          rsync -avz --delete \
+            --exclude='.git*' \
+            --exclude='node_modules' \
+            --exclude='.sass-cache' \
+            theme/cts-demo-theme/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.WP_PATH }}/wp-content/themes/cts-demo-theme/
+          
+      - name: Activate theme (if WP-CLI available)
+        continue-on-error: true
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd ${{ secrets.WP_PATH }} && wp theme activate cts-demo-theme --quiet" || echo "WP-CLI not available, skipping theme activation"
+          
+      - name: Import/Update demo pages
+        continue-on-error: true
+        run: |
+          echo "Importing demo pages..."
+          # Upload demo content files
+          rsync -avz pages/demos/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.WP_PATH }}/wp-content/uploads/demos/
+          
+          # Upload documentation files
+          rsync -avz pages/docs/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.WP_PATH }}/wp-content/uploads/docs/
+          
+      - name: Clear WordPress caches
+        continue-on-error: true
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd ${{ secrets.WP_PATH }} && wp cache flush --quiet" || echo "Cache flush skipped"
+          
+      - name: Clear object cache
+        continue-on-error: true
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "cd ${{ secrets.WP_PATH }} && wp transient delete --all --quiet" || echo "Transient cleanup skipped"
+          
+      - name: Deployment summary
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo "Theme deployed to: ${{ secrets.DEPLOY_HOST }}"
+          echo "WordPress path: ${{ secrets.WP_PATH }}"
+          echo "Theme URL: https://${{ secrets.DEPLOY_HOST }}"
+          
+      - name: Send notification (optional)
+        if: always()
+        uses: 8398a7/action-slack@v3
+        continue-on-error: true
+        with:
+          status: ${{ job.status }}
+          text: |
+            Demo site deployment ${{ job.status }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+          webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
