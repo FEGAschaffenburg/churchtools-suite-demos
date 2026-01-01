@@ -1,0 +1,29 @@
+# WordPress
+wp-config.php
+wp-content/uploads/
+wp-content/cache/
+wp-content/backup-db/
+wp-content/advanced-cache.php
+wp-content/wp-cache-config.php
+wp-content/plugins/hello.php
+wp-content/plugins/akismet/
+*.log
+
+# Theme Development
+node_modules/
+.sass-cache/
+*.css.map
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.sublime-*
+
+# Backup
+*.backup
+*-backup-*/
