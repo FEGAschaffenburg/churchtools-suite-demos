@@ -1,0 +1,410 @@
+<?php
+/**
+ * Plugin Name:       ChurchTools Suite Demo
+ * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
+ * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.0+
+ * Version:           1.0.2
+ * Requires at least: 6.0
+ * Requires PHP:      8.0
+ * Requires Plugins:  churchtools-suite
+ * Author:            FEG Aschaffenburg
+ * Author URI:        https://feg-aschaffenburg.de
+ * License:           GPL v2 or later
+ * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
+ * Text Domain:       churchtools-suite-demo
+ * Domain Path:       /languages
+ *
+ * @package ChurchTools_Suite_Demo
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+// Define plugin constants
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.2' );
+define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
+define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
+
+/**
+ * Main Plugin Class
+ */
+class ChurchTools_Suite_Demo {
+	
+	/**
+	 * Singleton instance
+	 *
+	 * @var ChurchTools_Suite_Demo
+	 */
+	private static $instance = null;
+	
+	/**
+	 * Demo Users Repository
+	 *
+	 * @var ChurchTools_Suite_Demo_Users_Repository
+	 */
+	public $demo_users_repo;
+	
+	/**
+	 * Demo Registration Service
+	 *
+	 * @var ChurchTools_Suite_Demo_Registration_Service
+	 */
+	public $registration_service;
+	
+	/**
+	 * Get singleton instance
+	 *
+	 * @return ChurchTools_Suite_Demo
+	 */
+	public static function instance(): ChurchTools_Suite_Demo {
+		if ( is_null( self::$instance ) ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+	
+	/**
+	 * Constructor
+	 */
+	private function __construct() {
+		// Check if parent plugin is active
+		add_action( 'admin_init', [ $this, 'check_dependencies' ] );
+		
+		// Initialize plugin
+		add_action( 'plugins_loaded', [ $this, 'init' ] );
+		
+		// Activation/Deactivation hooks
+		register_activation_hook( __FILE__, [ $this, 'activate' ] );
+		register_deactivation_hook( __FILE__, [ $this, 'deactivate' ] );
+	}
+	
+	/**
+	 * Check if parent plugin is active
+	 */
+	public function check_dependencies(): void {
+		if ( ! class_exists( 'ChurchTools_Suite' ) ) {
+			deactivate_plugins( plugin_basename( __FILE__ ) );
+			wp_die(
+				__( 'ChurchTools Suite Demo benötigt das ChurchTools Suite Plugin. Bitte installieren und aktivieren Sie es zuerst.', 'churchtools-suite-demo' ),
+				__( 'Plugin-Abhängigkeit fehlt', 'churchtools-suite-demo' ),
+				[ 'back_link' => true ]
+			);
+		}
+	}
+	
+	/**
+	 * Initialize plugin
+	 */
+	public function init(): void {
+		// Load dependencies
+		$this->load_dependencies();
+		
+		// Initialize repositories
+		$this->init_repositories();
+		
+		// Initialize services
+		$this->init_services();
+		
+		// Register custom user role
+		$this->register_demo_role();
+		
+		// Register shortcodes
+		$this->register_shortcodes();
+		
+		// Register admin pages
+		if ( is_admin() ) {
+			$this->register_admin();
+		}
+		
+		// Register cron jobs
+		$this->register_cron_jobs();
+		
+		// Register verification handler
+		add_action( 'template_redirect', [ $this, 'handle_verification' ] );
+		
+		// Hook into parent plugin's data provider (Priority 99 to ensure it runs last)
+		add_filter( 'churchtools_suite_get_events', [ $this, 'provide_demo_events' ], 99, 2 );
+	}
+	
+	/**
+	 * Load plugin dependencies
+	 */
+	private function load_dependencies(): void {
+		// Repositories
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/repositories/class-demo-users-repository.php';
+		
+		// Services
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/services/class-demo-data-provider.php';
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/services/class-demo-registration-service.php';
+		
+		// Admin
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'admin/class-demo-admin.php';
+		
+		// Shortcodes
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-shortcodes.php';
+	}
+	
+	/**
+	 * Initialize repositories
+	 */
+	private function init_repositories(): void {
+		$this->demo_users_repo = new ChurchTools_Suite_Demo_Users_Repository();
+	}
+	
+	/**
+	 * Initialize services
+	 */
+	private function init_services(): void {
+		$this->registration_service = new ChurchTools_Suite_Demo_Registration_Service( $this->demo_users_repo );
+	}
+	
+	/**
+	 * Register custom demo user role
+	 */
+	private function register_demo_role(): void {
+		// Only create role if it doesn't exist
+		if ( ! get_role( 'cts_demo_user' ) ) {
+			add_role(
+				'cts_demo_user',
+				__( 'ChurchTools Demo User', 'churchtools-suite-demo' ),
+				[
+					'read' => true, // Basic WordPress read capability
+					'cts_view_plugin' => true, // Custom capability to view plugin
+				]
+			);
+		}
+	}
+	
+	/**
+	 * Register shortcodes
+	 */
+	private function register_shortcodes(): void {
+		$shortcodes = new ChurchTools_Suite_Demo_Shortcodes( $this->registration_service );
+		$shortcodes->init();
+	}
+	
+	/**
+	 * Register admin pages
+	 */
+	private function register_admin(): void {
+		$admin = new ChurchTools_Suite_Demo_Admin( $this->demo_users_repo );
+		$admin->init();
+	}
+	
+	/**
+	 * Register cron jobs
+	 */
+	private function register_cron_jobs(): void {
+		// Schedule daily cleanup if not already scheduled
+		if ( ! wp_next_scheduled( 'cts_demo_cleanup' ) ) {
+			wp_schedule_event( time(), 'daily', 'cts_demo_cleanup' );
+		}
+		
+		// Register cleanup action
+		add_action( 'cts_demo_cleanup', [ $this, 'run_cleanup' ] );
+	}
+	
+	/**
+	 * Run cleanup job
+	 */
+	public function run_cleanup(): void {
+		// Delete unverified users older than 7 days
+		$unverified_deleted = $this->demo_users_repo->delete_unverified_older_than( 7 );
+		
+		// Delete verified users older than 30 days
+		$verified_deleted = $this->demo_users_repo->delete_verified_older_than( 30 );
+		
+		// Log cleanup
+		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+			ChurchTools_Suite_Logger::log( 'demo_cleanup', 'Cleanup completed', [
+				'unverified_deleted' => $unverified_deleted,
+				'verified_deleted' => $verified_deleted,
+			] );
+		}
+	}
+	
+	/**
+	 * Handle email verification
+	 */
+	public function handle_verification(): void {
+		if ( isset( $_GET['action'] ) && $_GET['action'] === 'cts_verify_demo_user' && isset( $_GET['token'] ) ) {
+			$token = sanitize_text_field( wp_unslash( $_GET['token'] ) );
+			
+			$result = $this->registration_service->verify_email( $token );
+			
+			if ( is_wp_error( $result ) ) {
+				wp_die(
+					$result->get_error_message(),
+					__( 'Verifizierung fehlgeschlagen', 'churchtools-suite-demo' ),
+					[ 'back_link' => true ]
+				);
+			}
+			
+			// Auto-login
+			$this->registration_service->auto_login( $result['wp_user_id'] );
+			
+			// Redirect to admin
+			wp_safe_redirect( admin_url() );
+			exit;
+		}
+	}
+	
+	/**
+	 * Provide demo events (filter hook)
+	 *
+	 * @param array $events  Original events
+	 * @param array $filters Query filters
+	 * @return array Demo events
+	 */
+	public function provide_demo_events( array $events, array $filters ): array {
+		// Debug logging
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'ChurchTools Suite Demo: Filter called with ' . count( $events ) . ' input events' );
+			error_log( 'ChurchTools Suite Demo: Filters: ' . print_r( $filters, true ) );
+		}
+		
+		$demo_provider = new ChurchTools_Suite_Demo_Data_Provider();
+		
+		$demo_args = [
+			'from' => $filters['from'] ?? date( 'Y-m-d H:i:s' ),
+			'to' => $filters['to'] ?? date( 'Y-m-d H:i:s', strtotime( '+90 days' ) ),
+			'limit' => $filters['limit'] ?? 20,
+			'calendar_ids' => $filters['calendar_ids'] ?? [],
+		];
+		
+		$demo_events = $demo_provider->get_events( $demo_args );
+		
+		// Format events for template compatibility
+		$demo_events = array_map( [ $this, 'format_demo_event' ], $demo_events );
+		
+		// Debug logging
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( 'ChurchTools Suite Demo: Returning ' . count( $demo_events ) . ' demo events' );
+		}
+		
+		return $demo_events;
+	}
+	
+	/**
+	 * Format demo event for template compatibility
+	 *
+	 * @param array $event Raw demo event
+	 * @return array Formatted event
+	 */
+	private function format_demo_event( array $event ): array {
+		// WordPress date/time formats
+		$date_format = get_option( 'date_format', 'd.m.Y' );
+		$time_format = get_option( 'time_format', 'H:i' );
+		
+		$start_timestamp = strtotime( $event['start_datetime'] );
+		$end_timestamp = ! empty( $event['end_datetime'] ) ? strtotime( $event['end_datetime'] ) : null;
+		
+		// Add formatted date/time fields
+		$event['start_date'] = date_i18n( $date_format, $start_timestamp );
+		$event['start_time'] = date_i18n( $time_format, $start_timestamp );
+		$event['start_day'] = date_i18n( 'd', $start_timestamp );
+		$event['start_month'] = date_i18n( 'F', $start_timestamp );
+		$event['start_month_short'] = date_i18n( 'M', $start_timestamp );
+		$event['start_year'] = date_i18n( 'Y', $start_timestamp );
+		$event['start_weekday'] = date_i18n( 'l', $start_timestamp );
+		
+		if ( $end_timestamp ) {
+			$event['end_date'] = date_i18n( $date_format, $end_timestamp );
+			$event['end_time'] = date_i18n( $time_format, $end_timestamp );
+		} else {
+			$event['end_date'] = '';
+			$event['end_time'] = '';
+		}
+		
+		// Calendar color (from demo calendars)
+		$calendar_colors = [
+			'1' => '#2563eb',
+			'2' => '#16a34a',
+			'3' => '#dc2626',
+			'4' => '#9333ea',
+			'5' => '#ea580c',
+			'6' => '#0891b2',
+		];
+		$event['calendar_color'] = $calendar_colors[ $event['calendar_id'] ] ?? '#667eea';
+		
+		// Location (combine address fields if available)
+		if ( ! empty( $event['address_city'] ) ) {
+			$event['location'] = $event['address_city'];
+		} else {
+			$event['location'] = $event['location_name'] ?? '';
+		}
+		
+		// Services (empty for demo events, could be extended later)
+		$event['services'] = [];
+		
+		return $event;
+	}
+	
+	/**
+	 * Plugin activation
+	 */
+	public function activate(): void {
+		// Create database tables
+		$this->create_tables();
+		
+		// Register demo role
+		$this->register_demo_role();
+		
+		// Flush rewrite rules
+		flush_rewrite_rules();
+	}
+	
+	/**
+	 * Plugin deactivation
+	 */
+	public function deactivate(): void {
+		// Clear scheduled cron jobs
+		$timestamp = wp_next_scheduled( 'cts_demo_cleanup' );
+		if ( $timestamp ) {
+			wp_unschedule_event( $timestamp, 'cts_demo_cleanup' );
+		}
+		
+		// Flush rewrite rules
+		flush_rewrite_rules();
+	}
+	
+	/**
+	 * Create database tables
+	 */
+	private function create_tables(): void {
+		global $wpdb;
+		
+		$charset_collate = $wpdb->get_charset_collate();
+		$table_name = $wpdb->prefix . 'cts_demo_users';
+		
+		$sql = "CREATE TABLE {$table_name} (
+			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+			email varchar(255) NOT NULL,
+			name varchar(255) NOT NULL,
+			organization varchar(255) DEFAULT NULL,
+			purpose text DEFAULT NULL,
+			verification_token varchar(64) NOT NULL,
+			is_verified tinyint(1) DEFAULT 0,
+			wordpress_user_id bigint(20) unsigned DEFAULT NULL,
+			expires_at datetime DEFAULT NULL,
+			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY email (email),
+			UNIQUE KEY verification_token (verification_token),
+			KEY is_verified (is_verified),
+			KEY expires_at (expires_at)
+		) $charset_collate;";
+		
+		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
+		dbDelta( $sql );
+	}
+}
+
+// Initialize plugin
+function churchtools_suite_demo() {
+	return ChurchTools_Suite_Demo::instance();
+}
+
+// Start plugin
+churchtools_suite_demo();
