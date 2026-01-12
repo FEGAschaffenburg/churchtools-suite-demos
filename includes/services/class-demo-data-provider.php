@@ -2,8 +2,12 @@
 /**
  * Demo Data Provider
  * 
- * Provides fake ChurchTools data for demo/testing purposes.
- * Only active when CTS_DEMO_MODE constant is set to true in wp-config.php
+ * Provides demo ChurchTools data for demo/testing purposes.
+ * 
+ * v1.0.4.0: Modified to read from database instead of generating on-the-fly
+ * - Demo events are now stored in the database during plugin activation
+ * - This method reads database events for demo calendars (IDs 1-6)
+ * - Fallback to generation only if database is not initialized (backwards compatibility)
  * 
  * @package ChurchTools_Suite
  * @since   0.9.3.0
@@ -112,7 +116,8 @@ class ChurchTools_Suite_Demo_Data_Provider {
 	/**
 	 * Get demo events
 	 *
-	 * Generates events for next 90 days
+	 * v1.0.4.0: Reads from database instead of generating on-the-fly
+	 * Falls back to generation if database not initialized
 	 *
 	 * @param array $args Optional parameters (from, to, limit, calendar_ids)
 	 * @return array
@@ -126,13 +131,135 @@ class ChurchTools_Suite_Demo_Data_Provider {
 		];
 		$args = wp_parse_args( $args, $defaults );
 		
-		// Debug
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			error_log( "Demo Provider: get_events() called START" );
-			error_log( "  from={$args['from']}, to={$args['to']}, limit={$args['limit']}" );
+		// v1.0.4.0: Try to load from database first (if Events Repository available)
+		$db_events = $this->get_events_from_database( $args );
+		
+		if ( ! empty( $db_events ) ) {
+			// Return database events
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( "Demo Provider: Returning {$db_events} events from database" );
+			}
+			return $db_events;
 		}
 		
+		// Fallback: Generate events on-the-fly (backwards compatibility)
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( "Demo Provider: Database events not available, falling back to generation" );
+		}
+		
+		return $this->generate_events_fallback( $args );
+	}
+	
+	/**
+	 * Get demo events from database (v1.0.4.0)
+	 *
+	 * Queries Events Repository for demo calendar events.
+	 *
+	 * @param array $args Query parameters
+	 * @return array Events from database or empty array if not available
+	 */
+	private function get_events_from_database( array $args ): array {
+		// Check if Events Repository is available
+		$repo_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-events-repository.php';
+		if ( ! file_exists( $repo_path ) ) {
+			return [];
+		}
+		
+		require_once $repo_path;
+		
+		if ( ! class_exists( 'ChurchTools_Suite_Events_Repository' ) ) {
+			return [];
+		}
+		
+		$repo = new ChurchTools_Suite_Events_Repository();
+		
+		// Get demo calendars (1-6)
+		$demo_calendar_ids = [ '1', '2', '3', '4', '5', '6' ];
+		
+		// Use provided calendar IDs if specified, otherwise use all demo calendars
+		if ( ! empty( $args['calendar_ids'] ) ) {
+			$calendar_ids = array_filter( $args['calendar_ids'], function( $id ) use ( $demo_calendar_ids ) {
+				return in_array( (string) $id, $demo_calendar_ids, true );
+			} );
+		} else {
+			$calendar_ids = $demo_calendar_ids;
+		}
+		
+		if ( empty( $calendar_ids ) ) {
+			return [];
+		}
+		
+		// Query database for events in date range and calendars
+		$from_datetime = $args['from'] . ' 00:00:00';
+		$to_datetime = $args['to'] . ' 23:59:59';
+		
+		$query = "
+			SELECT * FROM " . $repo->get_table_name() . "
+			WHERE calendar_id IN ('" . implode( "','", array_map( 'esc_sql', $calendar_ids ) ) . "')
+			AND start_datetime >= %s
+			AND start_datetime <= %s
+			ORDER BY start_datetime ASC
+			LIMIT %d
+		";
+		
+		global $wpdb;
+		$query = $wpdb->prepare( $query, $from_datetime, $to_datetime, intval( $args['limit'] ) );
+		$db_results = $wpdb->get_results( $query );
+		
+		if ( empty( $db_results ) ) {
+			return [];
+		}
+		
+		// Convert database objects to event arrays
 		$events = [];
+		foreach ( $db_results as $row ) {
+			$events[] = [
+				'id' => $row->id,
+				'event_id' => $row->event_id,
+				'appointment_id' => $row->appointment_id,
+				'calendar_id' => $row->calendar_id,
+				'title' => $row->title,
+				'description' => $row->description,
+				'event_description' => $row->event_description,
+				'appointment_description' => $row->appointment_description,
+				'start_datetime' => $row->start_datetime,
+				'end_datetime' => $row->end_datetime,
+				'location_name' => $row->location_name,
+				'address_name' => $row->address_name,
+				'address_street' => $row->address_street,
+				'address_zip' => $row->address_zip,
+				'address_city' => $row->address_city,
+				'address_latitude' => $row->address_latitude,
+				'address_longitude' => $row->address_longitude,
+				'tags' => $row->tags,
+				'status' => $row->status,
+				'image_attachment_id' => $row->image_attachment_id,
+				'image_url' => $row->image_url,
+				'raw_payload' => $row->raw_payload,
+			];
+		}
+		
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( "Demo Provider: Loaded " . count( $events ) . " events from database" );
+		}
+		
+		return $events;
+	}
+	
+	/**
+	 * Generate events on-the-fly (fallback, backwards compatibility)
+	 *
+	 * @param array $args Query parameters
+	 * @return array
+	 */
+	private function generate_events_fallback( array $args ): array {
+		$events = [];
+		
+		// Debug
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( "Demo Provider: get_events() called START (FALLBACK)" );
+			error_log( "  from={$args['from']}, to={$args['to']}, limit={$args['limit']}" );
+		}
 		
 		// Gottesdienste (Sundays)
 		$sunday_events = $this->generate_weekly_events(

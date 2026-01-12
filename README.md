@@ -1,52 +1,81 @@
-# ChurchTools Suite Demo Plugin
+# 🚀 ChurchTools Suite Demo Plugin - v1.0.3.1
 
-Demo-Addon für ChurchTools Suite mit Self-Service Backend-Registrierung.
+**Status:** ✅ Production Ready  
+**Version:** 1.0.3.1  
+**Datum:** Dezember 2024
+
+---
+
+## ✨ Was ist neu in v1.0.3.1?
+
+### KRITISCHE BUGFIXES
+- ✅ **Tabelle wird jetzt erstellt** - Activation Hooks hinzugefügt
+- ✅ **Fallback-Tabellenerstellung in init()** - Robustheit
+- ✅ **Event-Modal mit Demo-Daten** - Demo-Mode Support
+- ✅ **Version korrekt (1.0.3 → 1.0.3.1)**
+- ✅ **Fehlende DB-Spalten hinzugefügt** - verified_at, last_login_at, updated_at
+- ✅ **Performance-Indexes** - Query-Optimierung
 
 ## Features
 
 - ✅ Self-Service Registrierung mit E-Mail-Verifizierung
 - ✅ Auto-Login nach Verifizierung
-- ✅ Custom WordPress Role: `cts_demo_user` (nur Plugin-Zugriff)
-- ✅ Auto-Cleanup: Unverifizierte User nach 7 Tagen, Verifizierte nach 30 Tagen
+- ✅ Custom WordPress Role: `cts_demo_user`
+- ✅ Auto-Cleanup: Unverifizierte nach 7 Tagen
 - ✅ Admin-Panel für User-Verwaltung
-- ✅ Admin-Benachrichtigungen bei neuen Registrierungen
-- ✅ DSGVO-konform: Privacy Checkbox, Auto-Löschung, Export
+- ✅ DSGVO-konform: Privacy Policy, Auto-Löschung, Export
 - ✅ Demo-Daten: 6 Kalender mit realistischen Events
 
 ## Voraussetzungen
 
 - WordPress 6.0+
 - PHP 8.0+
-- **ChurchTools Suite Plugin v0.9.0** (Hauptplugin erforderlich!)
+- **ChurchTools Suite Plugin v1.0.3.1+** (Hauptplugin erforderlich!)
 
-⚠️ **HINWEIS:** Erfordert das neue Clean-Slate Release des Hauptplugins!
+---
 
-## Installation (nur Demo-Server!)
+## 🚀 SCHNELLE BEREITSTELLUNG
 
-⚠️ **WICHTIG:** Dieses Plugin ist **nur für den Demo-Server** gedacht und wird **NICHT via Git deployed**!
+### Schritt 1: ZIP-Paket erstellen
+```powershell
+cd C:\Users\nauma\OneDrive\Plugin_neu\churchtools-suite-demo
+.\deploy-demo-plugin.ps1
+```
+→ Erstellt: `C:\privat\churchtools-suite-demo-1.0.3.1.zip`
 
-### SSH-Deployment
+### Schritt 2: Auf Server hochladen
+- FTP: Hochladen zu `/wp-content/plugins/`
+- SSH: `scp` zum Server
+- Alte Version (`churchtools-suite-demo-1.0.3.0`) löschen
 
-```bash
-# 1. ZIP erstellen (lokal in PowerShell)
-cd c:\privat\churchtools-suite-demo
-Compress-Archive -Path * -DestinationPath ..\churchtools-suite-demo-1.0.0.zip -Force
+### Schritt 3: Aktivieren
+```
+WordPress Admin → Plugins → "ChurchTools Suite Demo" → Aktivieren
+```
 
-# 2. ZIP zum Server hochladen (via FTP/SSH)
-# z.B. mit WinSCP oder FileZilla
+### Schritt 4: Validierung
+Browser öffnen:
+```
+https://example.com/wp-content/plugins/churchtools-suite-demo/validate-installation.php
+```
+→ Alle Checks sollten ✅ sein
 
-# 3. Auf Server per SSH einloggen
-ssh user@plugin.feg-aschaffenburg.de
+---
 
-# 4. In Plugin-Verzeichnis wechseln
-cd /var/www/clients/client436/web2975/web/wp-content/plugins/
+## 📖 DOKUMENTATION
 
-# 5. ZIP entpacken
-unzip churchtools-suite-demo-1.0.0.zip -d churchtools-suite-demo/
+| Datei | Zweck |
+|-------|-------|
+| **UPDATE-DEPLOYMENT.md** | 📖 Quick-Start Deployment (5 Min) |
+| **DEPLOYMENT-INSTRUCTIONS.md** | 📖 Ausführliche technische Anleitung |
+| **validate-installation.php** | 🔍 Browser-basierter Validator |
+| **deploy-demo-plugin.ps1** | 🔧 ZIP-Paket-Creator (PowerShell) |
 
-# 6. Rechte setzen
-chown -R web2975:client436 churchtools-suite-demo/
-chmod -R 755 churchtools-suite-demo/
+---
+
+## 🔧 INSTALLATION (nur Demo-Server!)
+
+⚠️ **WICHTIG:** Dieses Plugin ist **nur für den Demo-Server** gedacht!
 
 # 7. Plugin aktivieren (via WP-CLI oder WordPress Admin)
 wp plugin activate churchtools-suite-demo

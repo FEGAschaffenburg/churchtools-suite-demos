@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.0+
- * Version:           1.0.3.1
+ * Version:           1.0.4.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.3.1' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.4.0' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -498,11 +498,25 @@ function churchtools_suite_demo() {
 // Start plugin
 churchtools_suite_demo();
 
-// Plugin activation/deactivation hooks (v1.0.3.1)
+// Plugin activation/deactivation hooks (v1.0.4.0: Added demo event persistence)
 register_activation_hook( __FILE__, function() {
+	// Load Activator for demo events
+	require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-churchtools-suite-demo-activator.php';
+	
+	// Run demo activator (creates demo events in database)
+	ChurchTools_Suite_Demo_Activator::activate();
+	
+	// Run plugin activator (creates tables, users)
 	churchtools_suite_demo()->activate();
 } );
 
 register_deactivation_hook( __FILE__, function() {
+	// Load Activator for demo events
+	require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-churchtools-suite-demo-activator.php';
+	
+	// Run demo deactivator (optional cleanup)
+	ChurchTools_Suite_Demo_Activator::deactivate();
+	
+	// Run plugin deactivator (cleanup)
 	churchtools_suite_demo()->deactivate();
 } );
