@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.0+
- * Version:           1.0.4.0
+ * Version:           1.0.4.2
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.4.0' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.4.2' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -203,9 +203,17 @@ class ChurchTools_Suite_Demo {
 		if ( ! wp_next_scheduled( 'cts_demo_cleanup' ) ) {
 			wp_schedule_event( time(), 'daily', 'cts_demo_cleanup' );
 		}
+
+		// Schedule daily demo event seeding to ensure future events are present
+		if ( ! wp_next_scheduled( 'cts_demo_seed_events' ) ) {
+			wp_schedule_event( time(), 'daily', 'cts_demo_seed_events' );
+		}
 		
 		// Register cleanup action
 		add_action( 'cts_demo_cleanup', [ $this, 'run_cleanup' ] );
+
+		// Register demo seeding action
+		add_action( 'cts_demo_seed_events', [ $this, 'seed_demo_events' ] );
 	}
 	
 	/**
@@ -224,6 +232,17 @@ class ChurchTools_Suite_Demo {
 				'unverified_deleted' => $unverified_deleted,
 				'verified_deleted' => $verified_deleted,
 			] );
+		}
+	}
+
+	/**
+	 * Ensure demo events exist in the future (cron)
+	 */
+	public function seed_demo_events(): void {
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-churchtools-suite-demo-activator.php';
+		$stats = ChurchTools_Suite_Demo_Activator::ensure_future_events();
+		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+			ChurchTools_Suite_Logger::log( 'demo_seed_events', 'Demo events ensured via cron', $stats );
 		}
 	}
 	

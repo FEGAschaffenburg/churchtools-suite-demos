@@ -607,12 +607,4 @@ class ChurchTools_Suite_Demo_Data_Provider {
 		return $tags[ $title ] ?? [];
 	}
 	
-	/**
-	 * Check if demo mode is enabled
-	 *
-	 * @return bool
-	 */
-	public static function is_demo_mode(): bool {
-		return defined( 'CTS_DEMO_MODE' ) && CTS_DEMO_MODE === true;
-	}
 }
