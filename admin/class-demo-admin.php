@@ -88,7 +88,7 @@ class ChurchTools_Suite_Demo_Admin {
 			'churchtools-suite',
 			__( 'Demo-Registrierungen', 'churchtools-suite-demo' ),
 			__( 'Demo-Users', 'churchtools-suite-demo' ),
-			'manage_options',
+			'manage_churchtools_suite', // v1.0.3.1: Use same capability as main plugin
 			'churchtools-suite-demo',
 			[ $this, 'render_admin_page' ]
 		);
