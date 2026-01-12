@@ -94,9 +94,12 @@ class ChurchTools_Suite_Demo {
 	}
 	
 	/**
-	 * Initialize plugin
+	 * Initialize plugin (v1.0.3.1: Create tables on init for robustness)
 	 */
 	public function init(): void {
+		// Ensure database tables exist (robustness: also on init, not just activation)
+		$this->create_tables();
+		
 		// Load dependencies
 		$this->load_dependencies();
 		
