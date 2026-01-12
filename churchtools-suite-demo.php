@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.0+
- * Version:           1.0.2
+ * Version:           1.0.3.1
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.2' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.3.1' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -351,6 +351,9 @@ class ChurchTools_Suite_Demo {
 		// Register demo role
 		$this->register_demo_role();
 		
+		// Create default demo user if it doesn't exist
+		$this->create_demo_user();
+		
 		// Flush rewrite rules
 		flush_rewrite_rules();
 	}
@@ -370,15 +373,84 @@ class ChurchTools_Suite_Demo {
 	}
 	
 	/**
-	 * Create database tables
+	 * Create default demo user if it doesn't exist
+	 * 
+	 * This user has cts_manager role to access the plugin backend
+	 * 
+	 * @since 1.0.2
+	 */
+	private function create_demo_user(): void {
+		// Check if demo-user already exists
+		$demo_user = get_user_by( 'login', 'demo-manager' );
+		
+		if ( $demo_user ) {
+			return; // Demo user already exists
+		}
+		
+		// Create new demo user with strong password
+		$password = wp_generate_password( 16, true );
+		
+		$user_id = wp_create_user(
+			'demo-manager',
+			$password,
+			'demo@example.com'
+		);
+		
+		if ( is_wp_error( $user_id ) ) {
+			// Log error if logging available
+			if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+				ChurchTools_Suite_Logger::log(
+					'demo_plugin',
+					'Failed to create demo user',
+					[ 'error' => $user_id->get_error_message() ]
+				);
+			}
+			return;
+		}
+		
+		// Assign cts_manager role (requires ChurchTools Suite to be active)
+		$user = new WP_User( $user_id );
+		if ( method_exists( $user, 'add_role' ) ) {
+			$user->add_role( 'cts_manager' );
+		}
+		
+		// Store credentials in option for admin display (delete after 24h)
+		set_transient(
+			'cts_demo_user_created',
+			[
+				'user_id' => $user_id,
+				'username' => 'demo-manager',
+				'password' => $password,
+				'email' => 'demo@example.com',
+				'created_at' => current_time( 'mysql' ),
+			],
+			24 * HOUR_IN_SECONDS // Expires in 24 hours
+		);
+		
+		// Log success
+		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+			ChurchTools_Suite_Logger::log(
+				'demo_plugin',
+				'Demo user created on activation',
+				[
+					'user_id' => $user_id,
+					'username' => 'demo-manager',
+					'role' => 'cts_manager',
+				]
+			);
+		}
+	}
+	
+	/**
+	 * Create database tables (v1.0.3.1: Fixed table name prefix and added columns)
 	 */
 	private function create_tables(): void {
 		global $wpdb;
 		
 		$charset_collate = $wpdb->get_charset_collate();
-		$table_name = $wpdb->prefix . 'cts_demo_users';
+		$table_name = $wpdb->prefix . 'cts_demo_users'; // wp_cts_demo_users
 		
-		$sql = "CREATE TABLE {$table_name} (
+		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 			email varchar(255) NOT NULL,
 			name varchar(255) NOT NULL,
@@ -386,18 +458,32 @@ class ChurchTools_Suite_Demo {
 			purpose text DEFAULT NULL,
 			verification_token varchar(64) NOT NULL,
 			is_verified tinyint(1) DEFAULT 0,
+			verified_at datetime DEFAULT NULL,
 			wordpress_user_id bigint(20) unsigned DEFAULT NULL,
+			last_login_at datetime DEFAULT NULL,
 			expires_at datetime DEFAULT NULL,
 			created_at datetime DEFAULT CURRENT_TIMESTAMP,
+			updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			PRIMARY KEY  (id),
 			UNIQUE KEY email (email),
 			UNIQUE KEY verification_token (verification_token),
 			KEY is_verified (is_verified),
-			KEY expires_at (expires_at)
+			KEY verified_at (verified_at),
+			KEY created_at (created_at),
+			KEY wordpress_user_id (wordpress_user_id)
 		) $charset_collate;";
 		
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
 		dbDelta( $sql );
+		
+		// Log table creation
+		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+			ChurchTools_Suite_Logger::log(
+				'demo_plugin',
+				'Demo tables created/verified',
+				[ 'table' => $table_name ]
+			);
+		}
 	}
 }
 
@@ -408,3 +494,12 @@ function churchtools_suite_demo() {
 
 // Start plugin
 churchtools_suite_demo();
+
+// Plugin activation/deactivation hooks (v1.0.3.1)
+register_activation_hook( __FILE__, function() {
+	churchtools_suite_demo()->activate();
+} );
+
+register_deactivation_hook( __FILE__, function() {
+	churchtools_suite_demo()->deactivate();
+} );

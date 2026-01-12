@@ -37,9 +37,47 @@ class ChurchTools_Suite_Demo_Admin {
 		// Add submenu to parent plugin
 		add_action( 'admin_menu', [ $this, 'add_submenu' ], 20 );
 		
+		// Show demo user credentials notice (24h after activation)
+		add_action( 'admin_notices', [ $this, 'show_demo_user_notice' ] );
+		
 		// Register AJAX handlers
 		add_action( 'wp_ajax_cts_demo_delete_user', [ $this, 'ajax_delete_user' ] );
 		add_action( 'wp_ajax_cts_demo_export_users', [ $this, 'ajax_export_users' ] );
+	}
+	
+	/**
+	 * Show demo user credentials notice
+	 * 
+	 * Displays credentials for 24h after demo plugin activation
+	 */
+	public function show_demo_user_notice(): void {
+		$credentials = get_transient( 'cts_demo_user_created' );
+		
+		if ( ! $credentials ) {
+			return; // Transient expired or doesn't exist
+		}
+		
+		?>
+		<div class="notice notice-success is-dismissible">
+			<p>
+				<strong><?php esc_html_e( 'ChurchTools Suite Demo aktiviert!', 'churchtools-suite-demo' ); ?></strong>
+			</p>
+			<p>
+				<?php esc_html_e( 'Ein Demo-Manager-Benutzer wurde automatisch erstellt:', 'churchtools-suite-demo' ); ?>
+			</p>
+			<p style="background: #f6f8fa; padding: 10px; border-radius: 4px; font-family: monospace;">
+				<?php esc_html_e( 'Benutzername:', 'churchtools-suite-demo' ); ?> <strong><?php echo esc_html( $credentials['username'] ); ?></strong><br>
+				<?php esc_html_e( 'Passwort:', 'churchtools-suite-demo' ); ?> <strong><?php echo esc_html( $credentials['password'] ); ?></strong><br>
+				<?php esc_html_e( 'E-Mail:', 'churchtools-suite-demo' ); ?> <strong><?php echo esc_html( $credentials['email'] ); ?></strong>
+			</p>
+			<p>
+				<?php esc_html_e( 'Diese Anmeldedaten werden hier in 24 Stunden automatisch gelöscht.', 'churchtools-suite-demo' ); ?>
+				<a href="<?php echo esc_url( admin_url( 'user-edit.php?user_id=' . $credentials['user_id'] ) ); ?>">
+					<?php esc_html_e( 'Benutzer bearbeiten →', 'churchtools-suite-demo' ); ?>
+				</a>
+			</p>
+		</div>
+		<?php
 	}
 	
 	/**

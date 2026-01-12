@@ -35,6 +35,7 @@ class ChurchTools_Suite_Demo_Shortcodes {
 	 */
 	public function init(): void {
 		add_shortcode( 'cts_demo_register', [ $this, 'render_registration_form' ] );
+		add_shortcode( 'cts_demo_register_success', [ $this, 'render_registration_success' ] );
 		
 		// Register AJAX handlers
 		add_action( 'wp_ajax_nopriv_cts_demo_register', [ $this, 'ajax_register' ] );
@@ -53,6 +54,37 @@ class ChurchTools_Suite_Demo_Shortcodes {
 	public function render_registration_form( $atts ): string {
 		ob_start();
 		include CHURCHTOOLS_SUITE_DEMO_PATH . 'templates/demo/registration-form.php';
+		return ob_get_clean();
+	}
+	
+	/**
+	 * Render registration success page (new in v1.0.2)
+	 * 
+	 * Usage: [cts_demo_register_success email="user@example.com" password="xxx" demo_url="..."]
+	 *
+	 * @param array $atts Shortcode attributes
+	 * @return string HTML output
+	 */
+	public function render_registration_success( $atts ): string {
+		$atts = shortcode_atts( [
+			'email' => '',
+			'password' => '',
+			'demo_url' => admin_url(),
+		], $atts );
+		
+		if ( empty( $atts['email'] ) || empty( $atts['password'] ) ) {
+			return '<p style="color: red;">' . esc_html__( 'Registrierungs-Daten fehlen', 'churchtools-suite-demo' ) . '</p>';
+		}
+		
+		// Load response class
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-registration-response.php';
+		
+		ob_start();
+		ChurchTools_Suite_Demo_Registration_Response::render_success(
+			[ 'email' => $atts['email'] ],
+			$atts['password'],
+			$atts['demo_url']
+		);
 		return ob_get_clean();
 	}
 	
@@ -87,8 +119,12 @@ class ChurchTools_Suite_Demo_Shortcodes {
 			] );
 		}
 		
+		// v1.0.2: Return password + success URL for post-registration display
 		wp_send_json_success( [
 			'message' => __( 'Registrierung erfolgreich! Bitte prüfen Sie Ihre E-Mails zur Verifizierung.', 'churchtools-suite-demo' ),
+			'email' => $data['email'],
+			'password' => $result['password'] ?? '', // Generated password (if applicable)
+			'redirect_url' => apply_filters( 'cts_demo_registration_redirect_url', admin_url(), $data ),
 		] );
 	}
 	
