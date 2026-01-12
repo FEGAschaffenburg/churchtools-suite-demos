@@ -32,6 +32,9 @@ class ChurchTools_Suite_Demo_Activator {
 			wp_die( __( 'ChurchTools Suite Hauptplugin ist nicht aktiviert!', 'churchtools-suite-demo' ) );
 		}
 		
+		// Create demo calendars in database
+		self::create_demo_calendars();
+		
 		// Create demo events in database
 		self::create_demo_events();
 		
@@ -70,6 +73,109 @@ class ChurchTools_Suite_Demo_Activator {
 				[]
 			);
 		}
+	}
+	
+	/**
+	 * Create demo calendars in database
+	 *
+	 * Creates 6 demo calendars in the database.
+	 * Uses Calendars Repository from main plugin.
+	 *
+	 * @return array Statistics ['created' => count]
+	 */
+	private static function create_demo_calendars(): array {
+		// Load Calendars Repository from main plugin
+		$calendars_repo_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-calendars-repository.php';
+		if ( ! file_exists( $calendars_repo_path ) ) {
+			if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+				ChurchTools_Suite_Logger::error(
+					'demo_activator',
+					'Calendars Repository not found',
+					[ 'path' => $calendars_repo_path ]
+				);
+			}
+			return [ 'created' => 0 ];
+		}
+		
+		require_once $calendars_repo_path;
+		
+		if ( ! class_exists( 'ChurchTools_Suite_Calendars_Repository' ) ) {
+			return [ 'created' => 0 ];
+		}
+		
+		$calendars_repo = new ChurchTools_Suite_Calendars_Repository();
+		$created = 0;
+		
+		$demo_calendars = [
+			[
+				'calendar_id' => '1',
+				'name' => 'Gottesdienste',
+				'name_translated' => 'Gottesdienste',
+				'color' => '#2563eb',
+				'is_selected' => 1,
+				'is_public' => 1,
+			],
+			[
+				'calendar_id' => '2',
+				'name' => 'Jugend',
+				'name_translated' => 'Jugend',
+				'color' => '#16a34a',
+				'is_selected' => 1,
+				'is_public' => 1,
+			],
+			[
+				'calendar_id' => '3',
+				'name' => 'Kinder',
+				'name_translated' => 'Kinder',
+				'color' => '#eab308',
+				'is_selected' => 1,
+				'is_public' => 1,
+			],
+			[
+				'calendar_id' => '4',
+				'name' => 'Musik',
+				'name_translated' => 'Musik',
+				'color' => '#dc2626',
+				'is_selected' => 1,
+				'is_public' => 1,
+			],
+			[
+				'calendar_id' => '5',
+				'name' => 'Kleingruppen',
+				'name_translated' => 'Kleingruppen',
+				'color' => '#9333ea',
+				'is_selected' => 1,
+				'is_public' => 1,
+			],
+			[
+				'calendar_id' => '6',
+				'name' => 'Gemeindeveranstaltungen',
+				'name_translated' => 'Gemeindeveranstaltungen',
+				'color' => '#0891b2',
+				'is_selected' => 1,
+				'is_public' => 1,
+			],
+		];
+		
+		foreach ( $demo_calendars as $calendar_data ) {
+			$existing = $calendars_repo->get_by_calendar_id( $calendar_data['calendar_id'] );
+			if ( ! $existing ) {
+				$result = $calendars_repo->insert( $calendar_data );
+				if ( $result ) {
+					$created++;
+				}
+			}
+		}
+		
+		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+			ChurchTools_Suite_Logger::log(
+				'demo_activator',
+				'Demo calendars creation completed',
+				[ 'created' => $created ]
+			);
+		}
+		
+		return [ 'created' => $created ];
 	}
 	
 	/**
@@ -179,6 +285,112 @@ class ChurchTools_Suite_Demo_Activator {
 		}
 		
 		return $stats;
+	}
+
+	/**
+	 * Ensure a minimum number of future demo events exist
+	 *
+	 * Runs on a scheduled cron job to keep the demo calendar populated.
+	 * Creates additional events up to the specified range if fewer than $min_future events exist.
+	 *
+	 * @param int $min_future_events Minimum events required in the future
+	 * @param int $days_ahead        How many days ahead to seed events
+	 * @return array Statistics including created/updated/failed counts
+	 */
+	public static function ensure_future_events( int $min_future_events = 30, int $days_ahead = 120 ): array {
+		// Check dependencies
+		if ( ! class_exists( 'ChurchTools_Suite' ) ) {
+			return [ 'error' => 'main_plugin_missing' ];
+		}
+
+		$events_repo_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-events-repository.php';
+		if ( ! file_exists( $events_repo_path ) ) {
+			return [ 'error' => 'events_repo_missing' ];
+		}
+
+		require_once $events_repo_path;
+		if ( ! class_exists( 'ChurchTools_Suite_Events_Repository' ) ) {
+			return [ 'error' => 'events_repo_class_missing' ];
+		}
+
+		$events_repo = new ChurchTools_Suite_Events_Repository();
+		$table = $events_repo->get_table_name();
+		$demo_calendar_ids = [ '1', '2', '3', '4', '5', '6' ];
+		
+		global $wpdb;
+		$placeholders = implode( ',', array_fill( 0, count( $demo_calendar_ids ), '%s' ) );
+		$now = current_time( 'mysql' );
+		
+		// Count existing future demo events
+		$count_sql = "SELECT COUNT(*) FROM {$table} WHERE calendar_id IN ({$placeholders}) AND start_datetime >= %s";
+		$count_prepared = $wpdb->prepare( $count_sql, array_merge( $demo_calendar_ids, [ $now ] ) );
+		$existing_future = (int) $wpdb->get_var( $count_prepared );
+
+		if ( $existing_future >= $min_future_events ) {
+			if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+				ChurchTools_Suite_Logger::log(
+					'demo_activator',
+					'Future demo events already sufficient',
+					[
+						'existing_future_events' => $existing_future,
+						'min_required' => $min_future_events,
+					]
+				);
+			}
+			return [
+				'created' => 0,
+				'updated' => 0,
+				'failed' => 0,
+				'existing_future_events' => $existing_future,
+			];
+		}
+
+		// Seed additional events up to the specified range
+		$from = date( 'Y-m-d', current_time( 'timestamp' ) );
+		$to = date( 'Y-m-d', current_time( 'timestamp' ) + $days_ahead * DAY_IN_SECONDS );
+
+		$demo_events = self::generate_all_demo_events( $from, $to );
+		// Only keep future instances
+		$demo_events = array_filter( $demo_events, function( $event ) use ( $now ) {
+			return strtotime( $event['start_datetime'] ) >= strtotime( $now );
+		} );
+
+		$stats = [ 'created' => 0, 'updated' => 0, 'failed' => 0 ];
+
+		foreach ( $demo_events as $event_data ) {
+			$result = $events_repo->upsert_by_appointment_id( $event_data );
+			if ( $result ) {
+				$existing = $events_repo->get_by_id( $result );
+				if ( $existing && $existing->created_at === $existing->updated_at ) {
+					$stats['created']++;
+				} else {
+					$stats['updated']++;
+				}
+			} else {
+				$stats['failed']++;
+			}
+		}
+
+		// Recount to report final state
+		$final_count = (int) $wpdb->get_var( $count_prepared );
+
+		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+			ChurchTools_Suite_Logger::log(
+				'demo_activator',
+				'Ensured future demo events',
+				array_merge( $stats, [
+					'existing_future_events' => $existing_future,
+					'final_future_events' => $final_count,
+					'min_required' => $min_future_events,
+					'days_seeded' => $days_ahead,
+				] )
+			);
+		}
+
+		return array_merge( $stats, [
+			'existing_future_events' => $existing_future,
+			'final_future_events' => $final_count,
+		] );
 	}
 	
 	/**

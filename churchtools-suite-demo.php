@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.0+
- * Version:           1.0.4.2
+ * Version:           1.0.5.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -22,7 +22,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.4.2' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.5.0' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -128,6 +128,15 @@ class ChurchTools_Suite_Demo {
 		
 		// Hook into parent plugin's data provider (Priority 99 to ensure it runs last)
 		add_filter( 'churchtools_suite_get_events', [ $this, 'provide_demo_events' ], 99, 2 );
+		
+		// Intercept sync operations and simulate them
+		add_action( 'wp_ajax_cts_sync_calendars', [ $this, 'simulate_calendar_sync' ], 1 );
+		add_action( 'wp_ajax_cts_sync_events', [ $this, 'simulate_event_sync' ], 1 );
+		add_action( 'wp_ajax_cts_test_connection', [ $this, 'simulate_connection_test' ], 1 );
+		
+		// Prevent settings changes in demo mode
+		add_action( 'admin_notices', [ $this, 'show_demo_mode_notice' ] );
+		add_action( 'wp_ajax_cts_save_calendar_selection', [ $this, 'prevent_calendar_changes' ], 1 );
 	}
 	
 	/**
@@ -270,6 +279,103 @@ class ChurchTools_Suite_Demo {
 			wp_safe_redirect( admin_url() );
 			exit;
 		}
+	}
+	
+	/**
+	 * Simulate calendar sync (AJAX intercept)
+	 */
+	public function simulate_calendar_sync(): void {
+		check_ajax_referer( 'churchtools_suite_admin', 'nonce' );
+		
+		if ( ! current_user_can( 'manage_churchtools_suite' ) ) {
+			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
+		}
+		
+		// Simulate successful sync
+		wp_send_json_success( [
+			'message' => __( 'Demo-Modus: Kalender-Synchronisation simuliert', 'churchtools-suite-demo' ),
+			'calendars_found' => 6,
+			'calendars_created' => 0,
+			'calendars_updated' => 0,
+		] );
+	}
+	
+	/**
+	 * Simulate event sync (AJAX intercept)
+	 */
+	public function simulate_event_sync(): void {
+		check_ajax_referer( 'churchtools_suite_admin', 'nonce' );
+		
+		if ( ! current_user_can( 'manage_churchtools_suite' ) ) {
+			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
+		}
+		
+		// Count existing demo events
+		global $wpdb;
+		$table = $wpdb->prefix . 'cts_events';
+		$count = $wpdb->get_var( "SELECT COUNT(*) FROM {$table} WHERE calendar_id IN ('1','2','3','4','5','6')" );
+		
+		// Simulate successful sync
+		wp_send_json_success( [
+			'message' => __( 'Demo-Modus: Event-Synchronisation simuliert', 'churchtools-suite-demo' ),
+			'calendars_processed' => 6,
+			'events_found' => (int) $count,
+			'events_inserted' => 0,
+			'events_updated' => 0,
+			'events_skipped' => 0,
+			'services_imported' => 0,
+		] );
+	}
+	
+	/**
+	 * Simulate connection test (AJAX intercept)
+	 */
+	public function simulate_connection_test(): void {
+		check_ajax_referer( 'churchtools_suite_admin', 'nonce' );
+		
+		if ( ! current_user_can( 'manage_churchtools_suite' ) ) {
+			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
+		}
+		
+		// Simulate successful connection
+		wp_send_json_success( [
+			'message' => __( 'Demo-Modus: Verbindung simuliert (keine echte API-Verbindung)', 'churchtools-suite-demo' ),
+		] );
+	}
+	
+	/**
+	 * Show demo mode notice in admin
+	 */
+	public function show_demo_mode_notice(): void {
+		$screen = get_current_screen();
+		if ( ! $screen || strpos( $screen->id, 'churchtools-suite' ) === false ) {
+			return;
+		}
+		
+		?>
+		<div class="notice notice-info">
+			<p>
+				<strong>🎭 Demo-Modus aktiv:</strong>
+				Alle Daten sind Demo-Inhalte. Sync-Operationen werden simuliert. Konfigurationsänderungen sind deaktiviert.
+			</p>
+		</div>
+		<?php
+	}
+	
+	/**
+	 * Prevent calendar selection changes in demo mode
+	 */
+	public function prevent_calendar_changes(): void {
+		check_ajax_referer( 'churchtools_suite_admin', 'nonce' );
+		
+		if ( ! current_user_can( 'manage_churchtools_calendars' ) ) {
+			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
+		}
+		
+		// Prevent changes in demo mode
+		wp_send_json_error( [
+			'message' => __( 'Demo-Modus: Kalenderauswahl kann nicht geändert werden', 'churchtools-suite-demo' ),
+		] );
 	}
 	
 	/**

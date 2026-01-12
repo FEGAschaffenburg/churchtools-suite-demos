@@ -1,5 +1,21 @@
 # ChurchTools Suite Demo - Changelog
 
+## v1.0.5.0 - Full Demo Mode (12. Januar 2026)
+
+### ✨ Features
+- **Demo-Kalender automatisch erstellen** - 6 Kalender werden bei Aktivierung angelegt
+- **Sync-Simulation** - Kalender- und Event-Sync werden abgefangen und simuliert
+- **Konfigurationsschutz** - Verhindert Änderungen an Settings/Kalenderauswahl
+- **Admin-Hinweis** - Zeigt Demo-Modus-Banner im Admin
+- **API-Verbindungstest simuliert** - Test Connection zeigt Erfolg ohne echte API
+
+### 🔧 Änderungen
+- Alle Sync-AJAX-Hooks werden abgefangen (Priority 1)
+- Settings-Änderungen blockiert mit Fehlermeldung
+- Demo-Kalender in DB persistent (ID 1-6)
+
+---
+
 ## v1.0.4.2 - Compatibility Update (12. Januar 2026)
 
 ### 🔧 Änderungen
