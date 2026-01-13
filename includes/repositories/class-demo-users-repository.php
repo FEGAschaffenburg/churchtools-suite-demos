@@ -18,7 +18,9 @@ class ChurchTools_Suite_Demo_Users_Repository extends ChurchTools_Suite_Reposito
 	 * Constructor
 	 */
 	public function __construct() {
-		parent::__construct( 'demo_users' );
+		// Table names in repository base expect the plugin-specific prefix included.
+		// Use the same prefix as the main plugin to produce `wp_cts_demo_users`.
+		parent::__construct( 'cts_demo_users' );
 	}
 	
 	/**

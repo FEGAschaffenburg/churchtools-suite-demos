@@ -1,5 +1,52 @@
 # 📊 ChurchTools Suite - DEPLOYMENT STATUS REPORT
 
+---
+
+## ✅ AKTUELLSTES DEPLOYMENT: v1.0.5.0 (12. Januar 2026)
+
+**Version:** 1.0.5.0  
+**Datum:** 2026-01-12  
+**Methode:** SSH-Deployment  
+**Server:** web73.feg.de (plugin.feg-aschaffenburg.de)  
+**Status:** ✅ Erfolgreich deployed
+
+### Neue Features in v1.0.5.0
+1. **Automatische Kalender-Erstellung** (6 Demo-Kalender beim Aktivieren)
+2. **Sync-Simulation** (cts_sync_calendars, cts_sync_events, cts_test_connection)
+3. **Konfigurations-Schutz** (Verhindert manuelle Änderungen)
+
+### Deployment-Prozess
+```powershell
+# 1. ZIP erstellen
+.\deploy-demo-plugin.ps1
+
+# 2. Via SSH deployen
+.\deploy-ssh.ps1
+```
+
+**Output:**
+- ✅ ZIP hochgeladen via SCP
+- ✅ Auf Server entpackt und verschoben
+- ✅ Berechtigungen gesetzt (web2975:client436, chmod 755)
+
+### Git-Status
+- ✅ Commit: "Version 1.0.5.0 - Demo Mode Features"
+- ✅ Tag: v1.0.5.0
+- ⚠️  Kein Push zu GitHub (SSH-only Design)
+
+---
+
+## 📋 DEPLOYMENT-HISTORIE
+
+### v1.0.4.2 → v1.0.5.0
+**Datum:** 12. Januar 2026  
+**Änderungen:**
+- Demo-Kalender-Erstellung automatisiert
+- Sync-Operationen werden simuliert
+- Konfigurations-Änderungen blockiert
+
+---
+
 **Erstellungsdatum:** Dezember 2024  
 **Status:** ✅ PRODUCTION READY  
 **Version:** 1.0.3.1

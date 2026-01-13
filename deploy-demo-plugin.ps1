@@ -1,26 +1,34 @@
 #!/usr/bin/env powershell
 <#
 .SYNOPSIS
-ChurchTools Suite Demo Plugin - Deployment Script v1.0.3.1
+ChurchTools Suite Demo Plugin - Deployment Script
 
 .DESCRIPTION
 Erstellt ein ZIP-Package des Demo Plugins zur Verwendung auf dem Server.
+Liest Version automatisch aus churchtools-suite-demo.php aus.
 
 .EXAMPLE
 .\deploy-demo-plugin.ps1
 
 #>
 
-param(
-    [string]$Version = "1.0.3.1"
-)
+# Get script directory
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$pluginDir = $scriptDir
+
+# Read version from main plugin file
+$pluginFile = "$pluginDir\churchtools-suite-demo.php"
+$content = Get-Content $pluginFile -Raw
+if ($content -match "Version:\s+(\d+\.\d+\.\d+\.\d+)") {
+    $Version = $matches[1]
+} else {
+    Write-Host "❌ Could not read version from plugin file" -ForegroundColor Red
+    exit 1
+}
 
 Write-Host "=== ChurchTools Suite Demo Plugin Deployment ===" -ForegroundColor Cyan
 Write-Host "Version: $Version`n"
 
-# Get script directory
-$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$pluginDir = $scriptDir
 $outputDir = "C:\privat"
 
 # Create output directory if it doesn't exist
@@ -62,19 +70,17 @@ $tempDir = "$env:TEMP\cts-demo-build-$(Get-Random)"
 New-Item -ItemType Directory -Path $tempDir -Force | Out-Null
 
 try {
-    # Copy files to temp directory
+    # Copy files to temp directory (directly, not in subdirectory)
     Write-Host "📋 Copying files..."
     foreach ($file in $filesToInclude) {
         $source = Join-Path $pluginDir $file
-        $dest = Join-Path $tempDir "churchtools-suite-demo" $file
+        $dest = Join-Path $tempDir $file
         
         if (Test-Path $source) {
             if ((Get-Item $source).PSIsContainer) {
                 Copy-Item -Path $source -Destination $dest -Recurse -Force | Out-Null
                 Write-Host "  ✓ $file (directory)"
             } else {
-                $destDir = Split-Path -Parent $dest
-                New-Item -ItemType Directory -Path $destDir -Force | Out-Null
                 Copy-Item -Path $source -Destination $dest -Force | Out-Null
                 Write-Host "  ✓ $file"
             }
@@ -85,9 +91,9 @@ try {
     
     Write-Host "`n📦 Creating ZIP archive..."
     
-    # Create ZIP using .NET
+    # Create ZIP using .NET (include base directory = false for flat structure)
     Add-Type -AssemblyName System.IO.Compression.FileSystem
-    [System.IO.Compression.ZipFile]::CreateFromDirectory($tempDir, $zipPath, [System.IO.Compression.CompressionLevel]::Optimal, $true)
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($tempDir, $zipPath, [System.IO.Compression.CompressionLevel]::Optimal, $false)
     
     Write-Host "✅  ZIP created successfully!`n"
     

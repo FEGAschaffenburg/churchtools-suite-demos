@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.0+
- * Version:           1.0.5.0
+ * Version:           1.0.5.15
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -21,8 +21,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Suppress WP 6.7 JIT translation notice IMMEDIATELY (v1.0.5.15)
+remove_filter( 'load_textdomain_mofile', 'wp_check_load_textdomain_just_in_time' );
+
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.5.0' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.5.15' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -68,11 +71,14 @@ class ChurchTools_Suite_Demo {
 	 * Constructor
 	 */
 	private function __construct() {
-		// Check if parent plugin is active
-		add_action( 'admin_init', [ $this, 'check_dependencies' ] );
+		// Load text domain early (WordPress 6.7 compatibility)
+		add_action( 'init', [ $this, 'load_textdomain' ], 1 );
 		
-		// Initialize plugin
+		// Initialize plugin first (loads translations)
 		add_action( 'plugins_loaded', [ $this, 'init' ] );
+		
+		// Check dependencies after init
+		add_action( 'admin_init', [ $this, 'check_dependencies' ] );
 		
 		// Activation/Deactivation hooks
 		register_activation_hook( __FILE__, [ $this, 'activate' ] );
@@ -80,14 +86,21 @@ class ChurchTools_Suite_Demo {
 	}
 	
 	/**
+	 * Load plugin text domain (WordPress 6.7 compatibility)
+	 */
+	public function load_textdomain(): void {
+		load_plugin_textdomain( 'churchtools-suite-demo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
+	}
+
+	/**
 	 * Check if parent plugin is active
 	 */
 	public function check_dependencies(): void {
 		if ( ! class_exists( 'ChurchTools_Suite' ) ) {
 			deactivate_plugins( plugin_basename( __FILE__ ) );
 			wp_die(
-				__( 'ChurchTools Suite Demo benötigt das ChurchTools Suite Plugin. Bitte installieren und aktivieren Sie es zuerst.', 'churchtools-suite-demo' ),
-				__( 'Plugin-Abhängigkeit fehlt', 'churchtools-suite-demo' ),
+				'ChurchTools Suite Demo benötigt das ChurchTools Suite Plugin. Bitte installieren und aktivieren Sie es zuerst.',
+				'Plugin-Abhängigkeit fehlt',
 				[ 'back_link' => true ]
 			);
 		}
@@ -134,8 +147,7 @@ class ChurchTools_Suite_Demo {
 		add_action( 'wp_ajax_cts_sync_events', [ $this, 'simulate_event_sync' ], 1 );
 		add_action( 'wp_ajax_cts_test_connection', [ $this, 'simulate_connection_test' ], 1 );
 		
-		// Prevent settings changes in demo mode
-		add_action( 'admin_notices', [ $this, 'show_demo_mode_notice' ] );
+		// Prevent settings changes in demo mode (but no persistent notice)
 		add_action( 'wp_ajax_cts_save_calendar_selection', [ $this, 'prevent_calendar_changes' ], 1 );
 	}
 	
@@ -175,17 +187,23 @@ class ChurchTools_Suite_Demo {
 	 * Register custom demo user role
 	 */
 	private function register_demo_role(): void {
-		// Only create role if it doesn't exist
-		if ( ! get_role( 'cts_demo_user' ) ) {
-			add_role(
-				'cts_demo_user',
-				__( 'ChurchTools Demo User', 'churchtools-suite-demo' ),
-				[
-					'read' => true, // Basic WordPress read capability
-					'cts_view_plugin' => true, // Custom capability to view plugin
-				]
-			);
+		// Remove old role if exists (for capability updates)
+		if ( get_role( 'cts_demo_user' ) ) {
+			remove_role( 'cts_demo_user' );
 		}
+		
+		// Create role with all necessary capabilities for plugin access
+		add_role(
+			'cts_demo_user',
+			__( 'ChurchTools Demo User', 'churchtools-suite-demo' ),
+			[
+				'read' => true, // Basic WordPress read capability
+				'cts_view_plugin' => true, // Custom capability to view plugin
+				'manage_churchtools_suite' => true, // Access to ChurchTools Suite menu
+				'manage_churchtools_calendars' => true, // View/manage calendars
+				'manage_churchtools_events' => true, // View/manage events
+			]
+		);
 	}
 	
 	/**
@@ -310,6 +328,10 @@ class ChurchTools_Suite_Demo {
 			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
 		}
 		
+		// Seed demo data on simulated sync
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-churchtools-suite-demo-activator.php';
+		$seed_stats = ChurchTools_Suite_Demo_Activator::seed_demo_data_for_sync();
+		
 		// Count existing demo events
 		global $wpdb;
 		$table = $wpdb->prefix . 'cts_events';
@@ -320,8 +342,8 @@ class ChurchTools_Suite_Demo {
 			'message' => __( 'Demo-Modus: Event-Synchronisation simuliert', 'churchtools-suite-demo' ),
 			'calendars_processed' => 6,
 			'events_found' => (int) $count,
-			'events_inserted' => 0,
-			'events_updated' => 0,
+			'events_inserted' => $seed_stats['created'] ?? 0,
+			'events_updated' => $seed_stats['updated'] ?? 0,
 			'events_skipped' => 0,
 			'services_imported' => 0,
 		] );
@@ -341,25 +363,6 @@ class ChurchTools_Suite_Demo {
 		wp_send_json_success( [
 			'message' => __( 'Demo-Modus: Verbindung simuliert (keine echte API-Verbindung)', 'churchtools-suite-demo' ),
 		] );
-	}
-	
-	/**
-	 * Show demo mode notice in admin
-	 */
-	public function show_demo_mode_notice(): void {
-		$screen = get_current_screen();
-		if ( ! $screen || strpos( $screen->id, 'churchtools-suite' ) === false ) {
-			return;
-		}
-		
-		?>
-		<div class="notice notice-info">
-			<p>
-				<strong>🎭 Demo-Modus aktiv:</strong>
-				Alle Daten sind Demo-Inhalte. Sync-Operationen werden simuliert. Konfigurationsänderungen sind deaktiviert.
-			</p>
-		</div>
-		<?php
 	}
 	
 	/**
@@ -542,19 +545,6 @@ class ChurchTools_Suite_Demo {
 			$user->add_role( 'cts_manager' );
 		}
 		
-		// Store credentials in option for admin display (delete after 24h)
-		set_transient(
-			'cts_demo_user_created',
-			[
-				'user_id' => $user_id,
-				'username' => 'demo-manager',
-				'password' => $password,
-				'email' => 'demo@example.com',
-				'created_at' => current_time( 'mysql' ),
-			],
-			24 * HOUR_IN_SECONDS // Expires in 24 hours
-		);
-		
 		// Log success
 		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
 			ChurchTools_Suite_Logger::log(
@@ -577,6 +567,21 @@ class ChurchTools_Suite_Demo {
 		
 		$charset_collate = $wpdb->get_charset_collate();
 		$table_name = $wpdb->prefix . 'cts_demo_users'; // wp_cts_demo_users
+		
+		// Migration: Rename old table if exists (v1.0.5.1)
+		$old_table = $wpdb->prefix . 'demo_users';
+		$table_exists = $wpdb->get_var( "SHOW TABLES LIKE '{$old_table}'" );
+		if ( $table_exists ) {
+			$wpdb->query( "RENAME TABLE {$old_table} TO {$table_name}" );
+			
+			if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+				ChurchTools_Suite_Logger::log(
+					'demo_plugin',
+					'Migrated old table name',
+					[ 'from' => $old_table, 'to' => $table_name ]
+				);
+			}
+		}
 		
 		$sql = "CREATE TABLE IF NOT EXISTS {$table_name} (
 			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

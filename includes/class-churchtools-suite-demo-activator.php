@@ -29,11 +29,15 @@ class ChurchTools_Suite_Demo_Activator {
 	public static function activate(): void {
 		// Check if main plugin is active
 		if ( ! class_exists( 'ChurchTools_Suite' ) ) {
-			wp_die( __( 'ChurchTools Suite Hauptplugin ist nicht aktiviert!', 'churchtools-suite-demo' ) );
+			wp_die( 'ChurchTools Suite Hauptplugin ist nicht aktiviert!' );
 		}
 		
 		// Create demo calendars in database
 		self::create_demo_calendars();
+
+		// Create demo service groups and services
+		self::create_demo_service_groups();
+		self::create_demo_services();
 		
 		// Create demo events in database
 		self::create_demo_events();
@@ -59,8 +63,8 @@ class ChurchTools_Suite_Demo_Activator {
 	 * To enable deletion: Uncomment delete_demo_events() call below
 	 */
 	public static function deactivate(): void {
-		// Optionally delete demo events
-		// self::delete_demo_events();
+		// Remove all demo data from DB
+		self::delete_demo_data();
 		
 		// Delete activation flag
 		delete_option( self::ACTIVATION_FLAG );
@@ -69,7 +73,7 @@ class ChurchTools_Suite_Demo_Activator {
 		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
 			ChurchTools_Suite_Logger::log(
 				'demo_activator',
-				'Demo plugin deactivated',
+				'Demo plugin deactivated - demo data removed',
 				[]
 			);
 		}
@@ -177,6 +181,113 @@ class ChurchTools_Suite_Demo_Activator {
 		
 		return [ 'created' => $created ];
 	}
+
+	/**
+	 * Create demo service groups in database
+	 *
+	 * Uses Service Groups Repository from main plugin.
+	 *
+	 * @return array Statistics ['created' => count]
+	 */
+	private static function create_demo_service_groups(): array {
+		$repo_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-service-groups-repository.php';
+		if ( ! file_exists( $repo_path ) ) {
+			return [ 'created' => 0 ];
+		}
+
+		require_once $repo_path;
+
+		if ( ! class_exists( 'ChurchTools_Suite_Service_Groups_Repository' ) ) {
+			return [ 'created' => 0 ];
+		}
+
+		$groups_repo = new ChurchTools_Suite_Service_Groups_Repository();
+		$created = 0;
+
+		$demo_groups = [
+			[
+				'service_group_id' => 'sg_programm',
+				'name' => 'Programm',
+				'is_selected' => 1,
+				'sort_order' => 10,
+				'view_all' => 1,
+			],
+			[
+				'service_group_id' => 'sg_musik',
+				'name' => 'Musik',
+				'is_selected' => 1,
+				'sort_order' => 20,
+				'view_all' => 1,
+			],
+			[
+				'service_group_id' => 'sg_technik',
+				'name' => 'Technik',
+				'is_selected' => 1,
+				'sort_order' => 30,
+				'view_all' => 0,
+			],
+			[
+				'service_group_id' => 'sg_kinder',
+				'name' => 'Kinder',
+				'is_selected' => 1,
+				'sort_order' => 40,
+				'view_all' => 0,
+			],
+		];
+
+		foreach ( $demo_groups as $group ) {
+			$result = $groups_repo->upsert( $group );
+			if ( $result ) {
+				$created++;
+			}
+		}
+
+		return [ 'created' => $created ];
+	}
+
+	/**
+	 * Create demo services in database
+	 *
+	 * Uses Services Repository from main plugin.
+	 *
+	 * @return array Statistics ['created' => count]
+	 */
+	private static function create_demo_services(): array {
+		$repo_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-services-repository.php';
+		if ( ! file_exists( $repo_path ) ) {
+			return [ 'created' => 0 ];
+		}
+
+		require_once $repo_path;
+
+		if ( ! class_exists( 'ChurchTools_Suite_Services_Repository' ) ) {
+			return [ 'created' => 0 ];
+		}
+
+		$services_repo = new ChurchTools_Suite_Services_Repository();
+		$created = 0;
+
+		$demo_services = [
+			[ 'service_id' => 'svc_predigt', 'service_group_id' => 'sg_programm', 'name' => 'Prediger', 'name_translated' => 'Prediger', 'is_selected' => 1, 'sort_order' => 10 ],
+			[ 'service_id' => 'svc_moderation', 'service_group_id' => 'sg_programm', 'name' => 'Moderation', 'name_translated' => 'Moderation', 'is_selected' => 1, 'sort_order' => 20 ],
+			[ 'service_id' => 'svc_lobpreis', 'service_group_id' => 'sg_musik', 'name' => 'Lobpreis-Leitung', 'name_translated' => 'Lobpreis-Leitung', 'is_selected' => 1, 'sort_order' => 30 ],
+			[ 'service_id' => 'svc_gesang', 'service_group_id' => 'sg_musik', 'name' => 'Gesang', 'name_translated' => 'Gesang', 'is_selected' => 1, 'sort_order' => 40 ],
+			[ 'service_id' => 'svc_keyboard', 'service_group_id' => 'sg_musik', 'name' => 'Keyboard', 'name_translated' => 'Keyboard', 'is_selected' => 1, 'sort_order' => 50 ],
+			[ 'service_id' => 'svc_gitarre', 'service_group_id' => 'sg_musik', 'name' => 'Gitarre', 'name_translated' => 'Gitarre', 'is_selected' => 1, 'sort_order' => 60 ],
+			[ 'service_id' => 'svc_schlagzeug', 'service_group_id' => 'sg_musik', 'name' => 'Schlagzeug', 'name_translated' => 'Schlagzeug', 'is_selected' => 1, 'sort_order' => 70 ],
+			[ 'service_id' => 'svc_technik', 'service_group_id' => 'sg_technik', 'name' => 'Technik', 'name_translated' => 'Technik', 'is_selected' => 1, 'sort_order' => 80 ],
+			[ 'service_id' => 'svc_kinderbetreuung', 'service_group_id' => 'sg_kinder', 'name' => 'Kinderbetreuung', 'name_translated' => 'Kinderbetreuung', 'is_selected' => 1, 'sort_order' => 90 ],
+		];
+
+		foreach ( $demo_services as $service ) {
+			$result = $services_repo->upsert( $service );
+			if ( $result ) {
+				$created++;
+			}
+		}
+
+		return [ 'created' => $created ];
+	}
 	
 	/**
 	 * Create demo events in database
@@ -184,11 +295,12 @@ class ChurchTools_Suite_Demo_Activator {
 	 * Generates demo events for the next 90 days and writes them to the database.
 	 * Uses Events Repository from main plugin for database persistence.
 	 *
+	 * @param bool $force Force creation even if activation flag exists
 	 * @return array Statistics ['created' => count, 'skipped' => count]
 	 */
-	private static function create_demo_events(): array {
-		// Check if events already created (idempotent)
-		if ( get_option( self::ACTIVATION_FLAG ) ) {
+	private static function create_demo_events( bool $force = false ): array {
+		// Check if events already created (idempotent unless forced)
+		if ( ! $force && get_option( self::ACTIVATION_FLAG ) ) {
 			if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
 				ChurchTools_Suite_Logger::log(
 					'demo_activator',
@@ -260,6 +372,9 @@ class ChurchTools_Suite_Demo_Activator {
 				} else {
 					$stats['updated']++;
 				}
+				
+				// Assign demo services to this event
+				self::assign_demo_services_to_event( $result, $event_data['calendar_id'] );
 			} else {
 				$stats['failed']++;
 				if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
@@ -285,6 +400,124 @@ class ChurchTools_Suite_Demo_Activator {
 		}
 		
 		return $stats;
+	}
+	
+	/**
+	 * Seed all demo data (calendars, services, events) – used for sync simulation
+	 *
+	 * @return array Statistics from event creation
+	 */
+	public static function seed_demo_data_for_sync(): array {
+		self::create_demo_calendars();
+		self::create_demo_service_groups();
+		self::create_demo_services();
+		return self::create_demo_events( true );
+	}
+
+	/**
+	 * Delete all demo data (calendars, events, services, service groups)
+	 */
+	private static function delete_demo_data(): void {
+		global $wpdb;
+		$prefix = $wpdb->prefix . CHURCHTOOLS_SUITE_DB_PREFIX;
+
+		$wpdb->query( "DELETE FROM {$prefix}event_services WHERE service_id LIKE 'svc_%'" );
+		$wpdb->query( "DELETE FROM {$prefix}events WHERE appointment_id LIKE 'demo_%' OR event_id LIKE 'demo_%' OR calendar_id IN ('1','2','3','4','5','6')" );
+		$wpdb->query( "DELETE FROM {$prefix}services WHERE service_id LIKE 'svc_%'" );
+		$wpdb->query( "DELETE FROM {$prefix}service_groups WHERE service_group_id LIKE 'sg_%'" );
+		$wpdb->query( "DELETE FROM {$prefix}calendars WHERE calendar_id IN ('1','2','3','4','5','6')" );
+
+		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+			ChurchTools_Suite_Logger::log(
+				'demo_activator',
+				'Deleted demo data',
+				[]
+			);
+		}
+	}
+
+	/**
+	 * Assign demo services to an event
+	 * 
+	 * Creates event_services entries for demo events based on calendar type.
+	 * 
+	 * @param int $event_id Local event ID
+	 * @param string $calendar_id Calendar ID
+	 * @return int Number of services assigned
+	 */
+	private static function assign_demo_services_to_event( int $event_id, string $calendar_id ): int {
+		// Load Event Services Repository
+		$repo_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-event-services-repository.php';
+		if ( ! file_exists( $repo_path ) ) {
+			return 0;
+		}
+		
+		require_once $repo_path;
+		
+		if ( ! class_exists( 'ChurchTools_Suite_Event_Services_Repository' ) ) {
+			return 0;
+		}
+		
+		$services_repo = new ChurchTools_Suite_Event_Services_Repository();
+		
+		// Delete existing services for this event (cleanup for re-seeding)
+		$services_repo->delete_for_event( $event_id );
+		
+		// Define service assignments based on calendar type
+		$service_assignments = [];
+		
+		switch ( $calendar_id ) {
+			case '1': // Gottesdienste
+				$service_assignments = [
+					[ 'service_id' => 'svc_prediger', 'service_name' => 'Prediger', 'person_name' => 'Pastor Weber' ],
+					[ 'service_id' => 'svc_moderation', 'service_name' => 'Moderation', 'person_name' => 'Anna Schmidt' ],
+					[ 'service_id' => 'svc_lobpreis', 'service_name' => 'Lobpreis-Leitung', 'person_name' => 'Michael Becker' ],
+					[ 'service_id' => 'svc_technik', 'service_name' => 'Technik', 'person_name' => 'Thomas Fischer' ],
+				];
+				break;
+			
+			case '2': // Jugend
+				$service_assignments = [
+					[ 'service_id' => 'svc_moderation', 'service_name' => 'Moderation', 'person_name' => 'Laura Wagner' ],
+					[ 'service_id' => 'svc_musik', 'service_name' => 'Musik', 'person_name' => 'Daniel Richter' ],
+				];
+				break;
+			
+			case '3': // Kinder
+				$service_assignments = [
+					[ 'service_id' => 'svc_kinderbetreuung', 'service_name' => 'Kinderbetreuung', 'person_name' => 'Sophie Klein' ],
+				];
+				break;
+			
+			case '4': // Musik
+				$service_assignments = [
+					[ 'service_id' => 'svc_lobpreis', 'service_name' => 'Lobpreis-Leitung', 'person_name' => 'Julia Koch' ],
+					[ 'service_id' => 'svc_keyboard', 'service_name' => 'Keyboard', 'person_name' => 'Sarah Weber' ],
+					[ 'service_id' => 'svc_gitarre', 'service_name' => 'Gitarre', 'person_name' => 'Peter Mueller' ],
+				];
+				break;
+			
+			default:
+				// No services for other calendars
+				return 0;
+		}
+		
+		// Insert services
+		$assigned = 0;
+		foreach ( $service_assignments as $service ) {
+			$result = $services_repo->upsert( [
+				'event_id' => $event_id,
+				'service_id' => $service['service_id'],
+				'service_name' => $service['service_name'],
+				'person_name' => $service['person_name'],
+			] );
+			
+			if ( $result ) {
+				$assigned++;
+			}
+		}
+		
+		return $assigned;
 	}
 
 	/**
@@ -736,3 +969,4 @@ class ChurchTools_Suite_Demo_Activator {
 		return $tags[ $title ] ?? [];
 	}
 }
+

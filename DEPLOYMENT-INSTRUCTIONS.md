@@ -1,23 +1,44 @@
-# ChurchTools Suite Demo Plugin - Deployment v1.0.3.1
+# ChurchTools Suite Demo Plugin - Deployment v1.0.5.0
 
 ## 🚀 Schnelle Anleitung für Plugin-Update
 
-### Fehler der vorherigen Version (v1.0.3)
-- ❌ Tabelle `wp_cts_demo_users` wurde nicht erstellt
-- ❌ Activation Hooks nicht registriert
-- ❌ Fehlende Spalten (`verified_at`, `last_login_at`, etc.)
-
-### Fixes in v1.0.3.1 ✅
-- ✅ Activation Hooks registriert
-- ✅ Tabelle wird auch bei `init()` erstellt (robuster)
-- ✅ Alle erforderlichen Spalten hinzugefügt
-- ✅ Indizes optimiert
+### Neues in Version 1.0.5.0 ✅
+- ✅ Kalender werden automatisch beim Aktivieren erstellt (6 Demo-Kalender)
+- ✅ Sync-Operationen werden simuliert (keine echte ChurchTools-Verbindung nötig)
+- ✅ Manuelle Konfigurations-Änderungen werden verhindert
+- ✅ Admin-Hinweise zeigen Demo-Modus an
 
 ---
 
 ## 📋 Deployment-Schritte
 
-### Option 1: Einfaches Copy-Paste (Empfohlen)
+### Option 1: SSH-Deployment (Empfohlen) ⭐
+
+**Schnellstart:**
+```powershell
+# 1. ZIP erstellen (falls noch nicht vorhanden)
+cd c:\Users\nauma\OneDrive\Plugin_neu\churchtools-suite-demo
+.\deploy-demo-plugin.ps1
+
+# 2. Via SSH auf Server deployen
+.\deploy-ssh.ps1
+```
+
+**Was passiert:**
+1. ✅ Findet automatisch neueste ZIP-Datei in `C:\privat\`
+2. ✅ Lädt ZIP via SCP auf Server hoch (`/tmp/`)
+3. ✅ Entpackt Plugin-Dateien
+4. ✅ Ersetzt altes Plugin-Verzeichnis
+5. ✅ Setzt korrekte Berechtigungen (`web2975:client436`)
+
+**Voraussetzungen:**
+- SSH-Key: `~/.ssh/id_feg_rsa` muss existieren
+- Server: `web73.feg.de:22073`
+- User: `aschaffesshadmin`
+
+---
+
+### Option 2: Einfaches Copy-Paste
 
 1. **Lokal**: Gehe in `c:\Users\nauma\OneDrive\Plugin_neu\churchtools-suite-demo`
 2. **Kopiere den gesamten Ordner**
