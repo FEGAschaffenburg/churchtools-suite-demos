@@ -347,7 +347,7 @@ class ChurchTools_Suite_Demo_Registration_Service {
 	 * @param int $user_id WordPress user ID
 	 * @since 1.0.7.0
 	 */
-	private function import_demo_data( int $user_id ): void {
+	public function import_demo_data( int $user_id ): void {
 		error_log( sprintf(
 			'[ChurchTools Demo] Starting demo data import for user %d (isolated demo tables)',
 			$user_id
