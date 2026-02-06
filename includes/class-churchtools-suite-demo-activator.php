@@ -42,6 +42,9 @@ class ChurchTools_Suite_Demo_Activator {
 		// Create demo events in database
 		self::create_demo_events();
 		
+		// Create example demo page with sample shortcodes
+		self::create_example_demo_page();
+		
 		// Mark as created
 		update_option( self::ACTIVATION_FLAG, 1 );
 		
@@ -58,15 +61,18 @@ class ChurchTools_Suite_Demo_Activator {
 	/**
 	 * Deactivate plugin - Optional cleanup
 	 *
-	 * Can optionally delete demo events when demo plugin is deactivated.
-	 * Currently: KEEPS events (user may want to keep demo data)
-	 * To enable deletion: Uncomment delete_demo_events() call below
+	 * IMPORTANT: Does NOT delete demo events on deactivation!
+	 * Demo events remain in DB so main plugin can still display them.
+	 * This allows shortcodes/blocks to work even with demo plugin deactivated.
+	 * 
+	 * To manually clean demo data: Use admin "Reset" button or uninstall plugin
 	 */
 	public static function deactivate(): void {
-		// Remove all demo data from DB
-		self::delete_demo_data();
+		// KEEP demo data in DB (don't delete)
+		// Reason: Main plugin shortcodes should continue working
+		// self::delete_demo_data(); // COMMENTED OUT
 		
-		// Delete activation flag
+		// Delete activation flag (allows re-activation to re-seed)
 		delete_option( self::ACTIVATION_FLAG );
 		
 		// Log
@@ -110,79 +116,105 @@ class ChurchTools_Suite_Demo_Activator {
 		$calendars_repo = new ChurchTools_Suite_Calendars_Repository();
 		$created = 0;
 		
-		$demo_calendars = [
-			[
-				'calendar_id' => '1',
-				'name' => 'Gottesdienste',
-				'name_translated' => 'Gottesdienste',
-				'color' => '#2563eb',
-				'is_selected' => 1,
-				'is_public' => 1,
-			],
-			[
-				'calendar_id' => '2',
-				'name' => 'Jugend',
-				'name_translated' => 'Jugend',
-				'color' => '#16a34a',
-				'is_selected' => 1,
-				'is_public' => 1,
-			],
-			[
-				'calendar_id' => '3',
-				'name' => 'Kinder',
-				'name_translated' => 'Kinder',
-				'color' => '#eab308',
-				'is_selected' => 1,
-				'is_public' => 1,
-			],
-			[
-				'calendar_id' => '4',
-				'name' => 'Musik',
-				'name_translated' => 'Musik',
-				'color' => '#dc2626',
-				'is_selected' => 1,
-				'is_public' => 1,
-			],
-			[
-				'calendar_id' => '5',
-				'name' => 'Kleingruppen',
-				'name_translated' => 'Kleingruppen',
-				'color' => '#9333ea',
-				'is_selected' => 1,
-				'is_public' => 1,
-			],
-			[
-				'calendar_id' => '6',
-				'name' => 'Gemeindeveranstaltungen',
-				'name_translated' => 'Gemeindeveranstaltungen',
-				'color' => '#0891b2',
-				'is_selected' => 1,
-				'is_public' => 1,
-			],
-		];
-		
-		foreach ( $demo_calendars as $calendar_data ) {
-			$existing = $calendars_repo->get_by_calendar_id( $calendar_data['calendar_id'] );
-			if ( ! $existing ) {
-				$result = $calendars_repo->insert( $calendar_data );
-				if ( $result ) {
-					$created++;
-				}
-			}
-		}
-		
-		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
-			ChurchTools_Suite_Logger::log(
-				'demo_activator',
-				'Demo calendars creation completed',
-				[ 'created' => $created ]
+	// Lizenzfreie Demo-Bilder von Unsplash (direkte Download-URLs)
+	// Alle Bilder: Unsplash License (kommerziell nutzbar, keine Namensnennung erforderlich)
+	$demo_calendars = [
+		[
+			'calendar_id' => '1',
+			'name' => 'Gottesdienste',
+			'name_translated' => 'Gottesdienste',
+			'color' => '#2563eb',
+			'is_selected' => 1,
+			'is_public' => 1,
+			'image_url' => 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=1200&h=800&fit=crop', // Church interior with light
+		],
+		[
+			'calendar_id' => '2',
+			'name' => 'Jugend',
+			'name_translated' => 'Jugend',
+			'color' => '#16a34a',
+			'is_selected' => 1,
+			'is_public' => 1,
+			'image_url' => 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&h=800&fit=crop', // Young people group
+		],
+		[
+			'calendar_id' => '3',
+			'name' => 'Kinder',
+			'name_translated' => 'Kinder',
+			'color' => '#eab308',
+			'is_selected' => 1,
+			'is_public' => 1,
+			'image_url' => 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=1200&h=800&fit=crop', // Children playing with toys
+		],
+		[
+			'calendar_id' => '4',
+			'name' => 'Musik',
+			'name_translated' => 'Musik',
+			'color' => '#dc2626',
+			'is_selected' => 1,
+			'is_public' => 1,
+			'image_url' => 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=1200&h=800&fit=crop', // Guitar and microphone
+		],
+		[
+			'calendar_id' => '5',
+			'name' => 'Kleingruppen',
+			'name_translated' => 'Kleingruppen',
+			'color' => '#9333ea',
+			'is_selected' => 1,
+			'is_public' => 1,
+			'image_url' => 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200&h=800&fit=crop', // People having coffee discussion
+		],
+		[
+			'calendar_id' => '6',
+			'name' => 'Gemeindeveranstaltungen',
+			'name_translated' => 'Gemeindeveranstaltungen',
+			'color' => '#0891b2',
+			'is_selected' => 1,
+			'is_public' => 1,
+			'image_url' => 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200&h=800&fit=crop', // Community gathering/buffet
+		],
+];
+
+foreach ( $demo_calendars as $calendar_data ) {
+	$existing = $calendars_repo->get_by_calendar_id( $calendar_data['calendar_id'] );
+	if ( ! $existing ) {
+		// Download und importiere Kalender-Bild
+		$image_attachment_id = 0;
+		if ( ! empty( $calendar_data['image_url'] ) ) {
+			$image_attachment_id = self::download_and_import_image(
+				$calendar_data['image_url'],
+				$calendar_data['name'] . ' - Kalender-Bild',
+				'calendar-' . $calendar_data['calendar_id']
 			);
 		}
 		
-		return [ 'created' => $created ];
+		// Füge Image-ID zu Kalenderdaten hinzu
+		if ( $image_attachment_id > 0 ) {
+			$calendar_data['calendar_image_id'] = $image_attachment_id;
+		}
+		
+		// Entferne image_url vor DB-Insert (ist kein DB-Feld)
+		unset( $calendar_data['image_url'] );
+		
+		$result = $calendars_repo->insert( $calendar_data );
+		if ( $result ) {
+			$created++;
+		}
 	}
+}
 
-	/**
+if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+	ChurchTools_Suite_Logger::log(
+		'demo_activator',
+		'Demo calendars creation completed',
+		[ 'created' => $created ]
+	);
+}
+
+return [ 'created' => $created ];
+}
+
+/**
 	 * Create demo service groups in database
 	 *
 	 * Uses Service Groups Repository from main plugin.
@@ -344,9 +376,9 @@ class ChurchTools_Suite_Demo_Activator {
 			'failed' => 0,
 		];
 		
-		// Calculate date range (today to +90 days)
-		$from = date( 'Y-m-d', current_time( 'timestamp' ) );
-		$to = date( 'Y-m-d', current_time( 'timestamp' ) + 90 * DAY_IN_SECONDS );
+		// Calculate date range (today to +90 days) - Use GMT for consistency with ChurchTools API
+		$from = gmdate( 'Y-m-d', time() );
+		$to = gmdate( 'Y-m-d', time() + 90 * DAY_IN_SECONDS );
 		
 		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
 			ChurchTools_Suite_Logger::log(
@@ -552,7 +584,7 @@ class ChurchTools_Suite_Demo_Activator {
 		
 		global $wpdb;
 		$placeholders = implode( ',', array_fill( 0, count( $demo_calendar_ids ), '%s' ) );
-		$now = current_time( 'mysql' );
+		$now = gmdate( 'Y-m-d H:i:s' ); // Use GMT for consistency
 		
 		// Count existing future demo events
 		$count_sql = "SELECT COUNT(*) FROM {$table} WHERE calendar_id IN ({$placeholders}) AND start_datetime >= %s";
@@ -578,9 +610,10 @@ class ChurchTools_Suite_Demo_Activator {
 			];
 		}
 
-		// Seed additional events up to the specified range
-		$from = date( 'Y-m-d', current_time( 'timestamp' ) );
-		$to = date( 'Y-m-d', current_time( 'timestamp' ) + $days_ahead * DAY_IN_SECONDS );
+		// Seed additional events up to the specified range - Use GMT for consistency with ChurchTools API
+		$now = gmdate( 'Y-m-d H:i:s' );
+		$from = gmdate( 'Y-m-d', time() );
+		$to = gmdate( 'Y-m-d', time() + $days_ahead * DAY_IN_SECONDS );
 
 		$demo_events = self::generate_all_demo_events( $from, $to );
 		// Only keep future instances
@@ -780,8 +813,11 @@ class ChurchTools_Suite_Demo_Activator {
 		string $to
 	): array {
 		$events = [];
-		$from_ts = strtotime( $from );
-		$current = strtotime( "next $day_of_week", $from_ts - DAY_IN_SECONDS );
+		$from_ts = strtotime( $from . ' 00:00:00' );
+		
+		// BUGFIX: Don't pass arithmetic to strtotime - pass valid timestamp as second parameter
+		$base_ts = max( $from_ts - DAY_IN_SECONDS, 0 ); // Ensure non-negative
+		$current = strtotime( "next $day_of_week", $base_ts );
 		$end = strtotime( $to . ' 23:59:59' );
 		
 		// Generate unique appointment_id for this recurring series
@@ -968,5 +1004,190 @@ class ChurchTools_Suite_Demo_Activator {
 		
 		return $tags[ $title ] ?? [];
 	}
+	
+	/**
+	 * Create example demo page with sample shortcode
+	 * 
+	 * Called during activation to provide template demo user
+	 * with an example test page
+	 * 
+	 * @since 1.0.7.0
+	 */
+	public static function create_example_demo_page(): void {
+		// Get or create default demo user
+		$demo_user = get_user_by( 'login', 'demo-manager' );
+		
+		if ( ! $demo_user ) {
+			return; // Demo user not created yet
+		}
+		
+		// Check if example page already exists
+		$existing = get_posts( [
+			'post_type'   => 'cts_demo_page',
+			'author'      => $demo_user->ID,
+			'title'       => 'Test Seite',
+			'numberposts' => 1,
+		] );
+		
+		if ( ! empty( $existing ) ) {
+			return; // Example page already exists
+		}
+		
+		// Create example demo page
+		$page_content = <<<EOT
+<!-- wp:paragraph -->
+<p><strong>Willkommen zur Test-Seite! 👋</strong></p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Diese Seite ist zum Ausprobieren von ChurchTools Events Shortcodes und Blöcken gedacht.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":2} -->
+<h2>Events-Liste (Shortcode)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Hier kannst du die Events in Liste anzeigen:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:shortcode -->
+[cts_list view="classic" limit="10"]
+<!-- /wp:shortcode -->
+
+<!-- wp:heading {"level":2} -->
+<h2>Events-Grid (Shortcode)</h2>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Oder die Events in einem Grid-Layout:</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:shortcode -->
+[cts_grid view="simple" limit="9"]
+<!-- /wp:shortcode -->
+
+<!-- wp:heading {"level":2} -->
+<h2>Tipps für die Test-Seite</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul>
+<li>Ändere die <code>view</code> Attribute: classic, modern, minimal, fluent (für Listen), simple, ocean, colorful, tile (für Grids)</li>
+<li>Ändere <code>limit</code> für die Anzahl der Events</li>
+<li>Verwende auch den Gutenberg-Block "ChurchTools Events" für visuelle Konfiguration</li>
+<li>Diese Seite wird beim Löschen deines Demo-Users automatisch gelöscht</li>
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:paragraph -->
+<p><em>Viel Spaß beim Testen! 🎉</em></p>
+<!-- /wp:paragraph -->
+EOT;
+		
+		$post_id = wp_insert_post( [
+			'post_type'    => 'cts_demo_page',
+			'post_title'   => 'Test Seite',
+			'post_content' => $page_content,
+			'post_author'  => $demo_user->ID,
+			'post_status'  => 'draft', // Draft so user can review before publishing
+		] );
+		
+		if ( $post_id && ! is_wp_error( $post_id ) ) {
+			if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+				ChurchTools_Suite_Logger::log(
+					'demo_activator',
+					'Example demo page created for demo user',
+					[ 'page_id' => $post_id, 'user_id' => $demo_user->ID ]
+				);
+			}
+		}
+	}
+
+/**
+ * Download und importiere Bild von URL
+ * 
+ * L�dt ein Bild von einer externen URL herunter und importiert es in die WordPress Media Library.
+ * Verwendet WordPress Core Funktionen f�r sicheren Download und Import.
+ * 
+ * @param string $image_url URL des zu ladenden Bildes (z.B. Unsplash)
+ * @param string $title Titel f�r das Bild in der Media Library
+ * @param string $alt_text Alt-Text f�r das Bild (optional)
+ * @return int WordPress Attachment ID oder 0 bei Fehler
+ */
+private static function download_and_import_image( string $image_url, string $title, string $alt_text = '' ): int {
+// Require WordPress file functions
+if ( ! function_exists( 'download_url' ) ) {
+require_once ABSPATH . 'wp-admin/includes/file.php';
+}
+if ( ! function_exists( 'media_handle_sideload' ) ) {
+require_once ABSPATH . 'wp-admin/includes/media.php';
+require_once ABSPATH . 'wp-admin/includes/image.php';
 }
 
+// Download image to temp file
+$temp_file = download_url( $image_url, 30 ); // 30 seconds timeout
+
+if ( is_wp_error( $temp_file ) ) {
+if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+ChurchTools_Suite_Logger::error(
+'demo_activator',
+'Failed to download demo calendar image',
+[
+'url' => $image_url,
+'error' => $temp_file->get_error_message(),
+]
+);
+}
+return 0;
+}
+
+// Prepare file array for media_handle_sideload
+$file_array = [
+'name'     => sanitize_file_name( $title . '.jpg' ),
+'tmp_name' => $temp_file,
+];
+
+// Import image to media library
+$attachment_id = media_handle_sideload( $file_array, 0, $title );
+
+// Clean up temp file
+if ( file_exists( $temp_file ) ) {
+@unlink( $temp_file );
+}
+
+if ( is_wp_error( $attachment_id ) ) {
+if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+ChurchTools_Suite_Logger::error(
+'demo_activator',
+'Failed to import demo calendar image to media library',
+[
+'url' => $image_url,
+'error' => $attachment_id->get_error_message(),
+]
+);
+}
+return 0;
+}
+
+// Set alt text
+if ( ! empty( $alt_text ) ) {
+update_post_meta( $attachment_id, '_wp_attachment_image_alt', sanitize_text_field( $alt_text ) );
+}
+
+// Log success
+if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
+ChurchTools_Suite_Logger::log(
+'demo_activator',
+'Demo calendar image downloaded and imported',
+[
+'attachment_id' => $attachment_id,
+'title' => $title,
+'url' => $image_url,
+]
+);
+}
+
+return $attachment_id;
+}
+}

@@ -27,11 +27,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 		</div>
 		
 		<div class="cts-form-group">
-			<label for="cts-demo-name">
-				Name
+			<label for="cts-demo-first-name">
+				Vorname
 				<span class="required">*</span>
 			</label>
-			<input type="text" id="cts-demo-name" name="name" required placeholder="Max Mustermann">
+			<input type="text" id="cts-demo-first-name" name="first_name" required placeholder="Max">
+		</div>
+		
+		<div class="cts-form-group">
+			<label for="cts-demo-last-name">
+				Nachname
+				<span class="required">*</span>
+			</label>
+			<input type="text" id="cts-demo-last-name" name="last_name" required placeholder="Mustermann">
+		</div>
+		
+		<div class="cts-form-group">
+			<label for="cts-demo-password">
+				Passwort
+				<span class="required">*</span>
+			</label>
+			<input type="password" id="cts-demo-password" name="password" required placeholder="Mindestens 8 Zeichen" minlength="8">
+			<p class="cts-field-hint">Mindestens 8 Zeichen erforderlich</p>
+		</div>
+		
+		<div class="cts-form-group">
+			<label for="cts-demo-password-confirm">
+				Passwort bestätigen
+				<span class="required">*</span>
+			</label>
+			<input type="password" id="cts-demo-password-confirm" name="password_confirm" required placeholder="Passwort wiederholen" minlength="8">
+			<p class="cts-field-hint cts-password-match" style="display: none;"></p>
 		</div>
 		
 		<div class="cts-form-group">

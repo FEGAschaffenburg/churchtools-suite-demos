@@ -33,26 +33,35 @@ class ChurchTools_Suite_Demo_Users_Repository extends ChurchTools_Suite_Reposito
 	 *     @type string $company            Optional
 	 *     @type string $purpose            Optional
 	 *     @type string $verification_token Required (unique)
+	 *     @type string $password_hash      Required (hashed password)
 	 * }
 	 * @return int|false Demo user ID or false on failure
 	 */
 	public function create( array $data ) {
 		$defaults = [
 			'email' => '',
+			'first_name' => null,
+			'last_name' => null,
 			'name' => null,
 			'company' => null,
 			'purpose' => null,
 			'verification_token' => '',
+			'password_hash' => '',
 			'verified_at' => null,
-			'wp_user_id' => null,
+			'wordpress_user_id' => null,
 			'last_login_at' => null,
 			'created_at' => current_time( 'mysql' ),
 		];
 		
 		$data = wp_parse_args( $data, $defaults );
 		
+		// Auto-generate name from first_name + last_name if not provided
+		if ( empty( $data['name'] ) && ! empty( $data['first_name'] ) && ! empty( $data['last_name'] ) ) {
+			$data['name'] = $data['first_name'] . ' ' . $data['last_name'];
+		}
+		
 		// Validate required fields
-		if ( empty( $data['email'] ) || empty( $data['verification_token'] ) ) {
+		if ( empty( $data['email'] ) || empty( $data['verification_token'] ) || empty( $data['password_hash'] ) ) {
 			return false;
 		}
 		
@@ -61,7 +70,7 @@ class ChurchTools_Suite_Demo_Users_Repository extends ChurchTools_Suite_Reposito
 		$result = $wpdb->insert(
 			$this->get_table_name(),
 			$data,
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ]
+			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' ]
 		);
 		
 		return $result ? $wpdb->insert_id : false;
@@ -116,7 +125,7 @@ class ChurchTools_Suite_Demo_Users_Repository extends ChurchTools_Suite_Reposito
 		
 		$result = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$this->get_table_name()} WHERE wp_user_id = %d",
+				"SELECT * FROM {$this->get_table_name()} WHERE wordpress_user_id = %d",
 				$wp_user_id
 			)
 		);
@@ -138,7 +147,7 @@ class ChurchTools_Suite_Demo_Users_Repository extends ChurchTools_Suite_Reposito
 			$this->get_table_name(),
 			[
 				'verified_at' => current_time( 'mysql' ),
-				'wp_user_id' => $wp_user_id,
+				'wordpress_user_id' => $wp_user_id,
 			],
 			[ 'id' => $id ],
 			[ '%s', '%d' ],
@@ -162,6 +171,24 @@ class ChurchTools_Suite_Demo_Users_Repository extends ChurchTools_Suite_Reposito
 			[ 'last_login_at' => current_time( 'mysql' ) ],
 			[ 'id' => $id ],
 			[ '%s' ],
+			[ '%d' ]
+		);
+		
+		return $result !== false;
+	}
+	
+	/**
+	 * Delete demo user by ID
+	 *
+	 * @param int $id Demo user ID
+	 * @return bool Success
+	 */
+	public function delete( int $id ): bool {
+		global $wpdb;
+		
+		$result = $wpdb->delete(
+			$this->get_table_name(),
+			[ 'id' => $id ],
 			[ '%d' ]
 		);
 		
@@ -205,10 +232,10 @@ class ChurchTools_Suite_Demo_Users_Repository extends ChurchTools_Suite_Reposito
 		// Get WordPress user IDs to delete
 		$wp_user_ids = $wpdb->get_col(
 			$wpdb->prepare(
-				"SELECT wp_user_id FROM {$this->get_table_name()} 
+				"SELECT wordpress_user_id FROM {$this->get_table_name()} 
 				WHERE verified_at IS NOT NULL 
 				AND created_at < %s
-				AND wp_user_id IS NOT NULL",
+				AND wordpress_user_id IS NOT NULL",
 				$threshold
 			)
 		);

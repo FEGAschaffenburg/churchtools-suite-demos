@@ -51,6 +51,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<th><?php esc_html_e( 'Name', 'churchtools-suite-demo' ); ?></th>
 				<th><?php esc_html_e( 'Firma/Gemeinde', 'churchtools-suite-demo' ); ?></th>
 				<th><?php esc_html_e( 'Status', 'churchtools-suite-demo' ); ?></th>
+				<th><?php esc_html_e( 'WP-User', 'churchtools-suite-demo' ); ?></th>
 				<th><?php esc_html_e( 'Letzter Login', 'churchtools-suite-demo' ); ?></th>
 				<th><?php esc_html_e( 'Registriert', 'churchtools-suite-demo' ); ?></th>
 				<th><?php esc_html_e( 'Aktionen', 'churchtools-suite-demo' ); ?></th>
@@ -59,7 +60,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 		<tbody>
 			<?php if ( empty( $users ) ) : ?>
 				<tr>
-					<td colspan="7" style="text-align: center; padding: 40px 20px; color: #666;">
+					<td colspan="8" style="text-align: center; padding: 40px 20px; color: #666;">
 						<?php esc_html_e( 'Noch keine Registrierungen vorhanden', 'churchtools-suite-demo' ); ?>
 					</td>
 				</tr>
@@ -76,11 +77,34 @@ if ( ! defined( 'ABSPATH' ) ) {
 								<span style="color: #eab308;">⏳ <?php esc_html_e( 'Ausstehend', 'churchtools-suite-demo' ); ?></span>
 							<?php endif; ?>
 						</td>
+						<td>
+							<?php if ( $user->wp_user_id ) : ?>
+								<?php $wp_user = get_userdata( $user->wp_user_id ); ?>
+								<?php if ( $wp_user ) : ?>
+									<span style="color: #16a34a;">✓ <?php echo esc_html( $wp_user->user_login ); ?></span>
+									<br><small style="color: #666;">(ID: <?php echo esc_html( $user->wp_user_id ); ?>)</small>
+								<?php else : ?>
+									<span style="color: #dc2626;">✗ Gelöscht (ID: <?php echo esc_html( $user->wp_user_id ); ?>)</span>
+								<?php endif; ?>
+							<?php else : ?>
+								<span style="color: #94a3b8;">− <?php esc_html_e( 'Nicht erstellt', 'churchtools-suite-demo' ); ?></span>
+							<?php endif; ?>
+						</td>
 						<td><?php echo esc_html( $user->last_login_at ? date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $user->last_login_at ) ) : '-' ); ?></td>
 						<td><?php echo esc_html( date_i18n( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), strtotime( $user->created_at ) ) ); ?></td>
 						<td>
+							<?php if ( ! $user->verified_at ) : ?>
+								<button type="button" class="button button-small cts-resend-email" data-id="<?php echo esc_attr( $user->id ); ?>" style="margin-bottom: 4px;">
+									📧 <?php esc_html_e( 'E-Mail erneut senden', 'churchtools-suite-demo' ); ?>
+								</button>
+								<br>
+								<button type="button" class="button button-small cts-manual-verify" data-id="<?php echo esc_attr( $user->id ); ?>" style="margin-bottom: 4px;">
+									✓ <?php esc_html_e( 'Manuell verifizieren', 'churchtools-suite-demo' ); ?>
+								</button>
+								<br>
+							<?php endif; ?>
 							<button type="button" class="button button-small cts-delete-user" data-id="<?php echo esc_attr( $user->id ); ?>">
-								<?php esc_html_e( 'Löschen', 'churchtools-suite-demo' ); ?>
+								🗑️ <?php esc_html_e( 'Löschen', 'churchtools-suite-demo' ); ?>
 							</button>
 						</td>
 					</tr>
@@ -92,6 +116,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 <script>
 jQuery(document).ready(function($) {
+	// Delete user
 	$('.cts-delete-user').on('click', function() {
 		if (!confirm('<?php esc_html_e( 'Wirklich löschen?', 'churchtools-suite-demo' ); ?>')) {
 			return;
@@ -113,6 +138,65 @@ jQuery(document).ready(function($) {
 					$row.fadeOut(300, function() { $(this).remove(); });
 				} else {
 					alert(response.data.message);
+				}
+			}
+		});
+	});
+	
+	// Resend verification email
+	$('.cts-resend-email').on('click', function() {
+		const $btn = $(this);
+		const userId = $btn.data('id');
+		
+		$btn.prop('disabled', true).text('Wird gesendet...');
+		
+		$.ajax({
+			url: ajaxurl,
+			method: 'POST',
+			data: {
+				action: 'cts_demo_resend_email',
+				nonce: '<?php echo wp_create_nonce( 'cts_demo_admin' ); ?>',
+				id: userId
+			},
+			success: function(response) {
+				if (response.success) {
+					alert(response.data.message);
+					$btn.text('📧 <?php esc_html_e( 'E-Mail erneut senden', 'churchtools-suite-demo' ); ?>');
+				} else {
+					alert(response.data.message);
+					$btn.text('📧 <?php esc_html_e( 'E-Mail erneut senden', 'churchtools-suite-demo' ); ?>');
+				}
+				$btn.prop('disabled', false);
+			}
+		});
+	});
+	
+	// Manual verification
+	$('.cts-manual-verify').on('click', function() {
+		if (!confirm('<?php esc_html_e( 'User manuell verifizieren und WordPress-Account erstellen?', 'churchtools-suite-demo' ); ?>')) {
+			return;
+		}
+		
+		const $btn = $(this);
+		const userId = $btn.data('id');
+		
+		$btn.prop('disabled', true).text('Wird verifiziert...');
+		
+		$.ajax({
+			url: ajaxurl,
+			method: 'POST',
+			data: {
+				action: 'cts_demo_manual_verify',
+				nonce: '<?php echo wp_create_nonce( 'cts_demo_admin' ); ?>',
+				id: userId
+			},
+			success: function(response) {
+				if (response.success) {
+					alert(response.data.message + '\nWordPress User ID: ' + response.data.wp_user_id);
+					location.reload();
+				} else {
+					alert(response.data.message);
+					$btn.text('✓ <?php esc_html_e( 'Manuell verifizieren', 'churchtools-suite-demo' ); ?>').prop('disabled', false);
 				}
 			}
 		});

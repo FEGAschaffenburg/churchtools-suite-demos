@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
- * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.0+
- * Version:           1.0.5.16
+ * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.8+
+ * Version:           1.0.7.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -11,8 +11,11 @@
  * Author URI:        https://feg-aschaffenburg.de
  * License:           GPL v2 or later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       churchtools-suite-demo
- * Domain Path:       /languages
+ *
+ * TRADEMARK NOTICE:
+ * ChurchTools ist eine registrierte Marke der ChurchTools GmbH.
+ * Dieses Projekt steht in keiner Verbindung zu oder Unterstützung durch die ChurchTools GmbH.
+ * ChurchTools Suite Demo wird ohne Gewährleistung bereitgestellt (see LICENSE).
  *
  * @package ChurchTools_Suite_Demo
  */
@@ -21,11 +24,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Suppress WP 6.7 JIT translation notice IMMEDIATELY (v1.0.5.15)
-remove_filter( 'load_textdomain_mofile', 'wp_check_load_textdomain_just_in_time' );
-
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.5.16' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.7.0' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -71,10 +71,7 @@ class ChurchTools_Suite_Demo {
 	 * Constructor
 	 */
 	private function __construct() {
-		// Load text domain early (WordPress 6.7 compatibility)
-		add_action( 'init', [ $this, 'load_textdomain' ], 1 );
-		
-		// Initialize plugin first (loads translations)
+		// Initialize plugin
 		add_action( 'plugins_loaded', [ $this, 'init' ] );
 		
 		// Check dependencies after init
@@ -85,13 +82,6 @@ class ChurchTools_Suite_Demo {
 		register_deactivation_hook( __FILE__, [ $this, 'deactivate' ] );
 	}
 	
-	/**
-	 * Load plugin text domain (WordPress 6.7 compatibility)
-	 */
-	public function load_textdomain(): void {
-		load_plugin_textdomain( 'churchtools-suite-demo', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );
-	}
-
 	/**
 	 * Check if parent plugin is active
 	 */
@@ -113,6 +103,10 @@ class ChurchTools_Suite_Demo {
 		// Ensure database tables exist (robustness: also on init, not just activation)
 		$this->create_tables();
 		
+		// Run migrations (v1.0.6.0: Multi-user support)
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-migrations.php';
+		ChurchTools_Suite_Demo_Migrations::run_migrations();
+		
 		// Load dependencies
 		$this->load_dependencies();
 		
@@ -128,6 +122,19 @@ class ChurchTools_Suite_Demo {
 		// Register shortcodes
 		$this->register_shortcodes();
 		
+		// Register Template CPT (Demo only)
+		add_action( 'init', [ 'ChurchTools_Suite_Demo_Template_CPT', 'register' ] );
+		add_action( 'init', [ 'ChurchTools_Suite_Demo_Template_CPT', 'add_capabilities' ] );
+		
+		// Cleanup demo pages when user is deleted
+		add_action( 'delete_user', [ 'ChurchTools_Suite_Demo_Template_CPT', 'delete_user_demo_pages' ] );
+		
+		// Enqueue frontend CSS for Demo Pages
+		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_frontend_styles' ] );
+		
+		// Add info banner to all shortcode outputs
+		add_filter( 'the_content', [ $this, 'add_demo_info_banner' ], 999 );
+		
 		// Register admin pages
 		if ( is_admin() ) {
 			$this->register_admin();
@@ -139,8 +146,17 @@ class ChurchTools_Suite_Demo {
 		// Register verification handler
 		add_action( 'template_redirect', [ $this, 'handle_verification' ] );
 		
-		// Hook into parent plugin's data provider (Priority 99 to ensure it runs last)
-		add_filter( 'churchtools_suite_get_events', [ $this, 'provide_demo_events' ], 99, 2 );
+		// v1.0.7.0: Demo mode settings override
+		add_action( 'admin_enqueue_scripts', [ $this, 'inject_demo_mode_ui' ] );
+		add_action( 'wp_ajax_cts_demo_toggle_mode', [ $this, 'ajax_toggle_demo_mode' ] );
+		
+		// v1.0.7.0: Custom menu for demo pages
+		add_action( 'init', [ $this, 'register_demo_menu_location' ] );
+		add_filter( 'wp_nav_menu_items', [ $this, 'add_demo_pages_to_menu' ], 10, 2 );
+		add_action( 'admin_bar_menu', [ $this, 'add_demo_pages_to_admin_bar' ], 100 );
+		
+		// NOTE: Demo events are stored in database and retrieved like normal ChurchTools events
+		// No special filter needed - main plugin handles everything
 		
 		// Intercept sync operations and simulate them
 		add_action( 'wp_ajax_cts_sync_calendars', [ $this, 'simulate_calendar_sync' ], 1 );
@@ -149,14 +165,30 @@ class ChurchTools_Suite_Demo {
 		
 		// Prevent settings changes in demo mode (but no persistent notice)
 		add_action( 'wp_ajax_cts_save_calendar_selection', [ $this, 'prevent_calendar_changes' ], 1 );
+		
+		// Restrict demo user capabilities (only Demo Pages + ChurchTools dashboard)
+		if ( is_admin() ) {
+			add_action( 'admin_menu', [ $this, 'restrict_demo_user_capabilities' ], 999 );
+		}
 	}
 	
 	/**
 	 * Load plugin dependencies
 	 */
 	private function load_dependencies(): void {
-		// Repositories
+		// Multi-user support (v1.0.6.0)
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-user-settings.php';
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-ct-client.php';
+		
+		// Demo Repositories (v1.0.7.0: Isolated per user)
 		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/repositories/class-demo-users-repository.php';
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/repositories/class-demo-presets-repository.php';
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/repositories/class-demo-events-repository.php';
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/repositories/class-demo-calendars-repository.php';
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/repositories/class-demo-services-repository.php';
+		
+		// CPT for Templates (Demo only)
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-template-cpt.php';
 		
 		// Services
 		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/services/class-demo-data-provider.php';
@@ -167,6 +199,10 @@ class ChurchTools_Suite_Demo {
 		
 		// Shortcodes
 		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-shortcodes.php';
+		
+		// v1.0.7.0: Repository overrides for demo users
+		// Register filters globally - they check user role internally
+		add_action( 'init', [ $this, 'setup_demo_repository_overrides' ], 1 );
 	}
 	
 	/**
@@ -185,6 +221,19 @@ class ChurchTools_Suite_Demo {
 	
 	/**
 	 * Register custom demo user role
+	 * 
+	 * Demo User kann:
+	 * - ChurchTools Suite Dashboard ANSCHAUEN (READ-ONLY)
+	 * - Eigene Demo-Seiten (CPT) erstellen/bearbeiten/löschen
+	 * 
+	 * Demo User KANN NICHT:
+	 * - Einstellungen ändern
+	 * - Events synchronisieren
+	 * - Kalender/Services konfigurieren
+	 * - Andere User sehen
+	 * - Plugins/Themes verwalten
+	 * - Normale Posts/Pages sehen
+	 * - Dateien verwalten
 	 */
 	private function register_demo_role(): void {
 		// Remove old role if exists (for capability updates)
@@ -192,20 +241,119 @@ class ChurchTools_Suite_Demo {
 			remove_role( 'cts_demo_user' );
 		}
 		
-		// Create role with all necessary capabilities for plugin access
+		// Create role with EXTREMELY LIMITED capabilities:
+		// Demo users get ONLY what they need, nothing more
 		add_role(
 			'cts_demo_user',
-			__( 'ChurchTools Demo User', 'churchtools-suite-demo' ),
+			'ChurchTools Demo User',
 			[
-				'read' => true, // Basic WordPress read capability
-				'cts_view_plugin' => true, // Custom capability to view plugin
-				'manage_churchtools_suite' => true, // Access to ChurchTools Suite menu
-				'manage_churchtools_calendars' => true, // View/manage calendars
-				'manage_churchtools_events' => true, // View/manage events
+				// === ABSOLUTE MINIMUM ===
+				'read' => true, // Can access admin area
+				
+				// === ChurchTools Suite - READ-ONLY Dashboard ===
+				'manage_churchtools_suite' => true, // Can VIEW menu + dashboard only
+				
+				// === NO ChurchTools modifications allowed ===
+				'view_churchtools_debug' => false,
+				'manage_churchtools_calendars' => false,
+				'configure_churchtools_suite' => false,
+				'sync_churchtools_events' => false,
+				'manage_churchtools_services' => false,
+				
+				// === Demo Pages (CPT) - FULL control on OWN pages ===
+				'manage_cts_demo_pages' => true,
+				'edit_cts_demo_page' => true,
+				'delete_cts_demo_page' => true,
+				'edit_cts_demo_pages' => true,
+				'delete_cts_demo_pages' => true,
+				'publish_cts_demo_pages' => true,
+				'edit_published_cts_demo_pages' => true,     // WICHTIG: Veröffentlichte bearbeiten
+				'delete_published_cts_demo_pages' => true,   // WICHTIG: Veröffentlichte löschen
+				'view_cts_demo_pages' => true,
+				
+				// === NO access to standard WordPress content ===
+				'edit_posts' => false,           // NO Posts
+				'delete_posts' => false,
+				'publish_posts' => false,
+				'read_private_posts' => false,
+				'edit_private_posts' => false,
+				'delete_private_posts' => false,
+				'edit_others_posts' => false,
+				'delete_others_posts' => false,
+				
+				'edit_pages' => false,           // NO Pages
+				'delete_pages' => false,
+				'publish_pages' => false,
+				'read_private_pages' => false,
+				'edit_private_pages' => false,
+				'delete_private_pages' => false,
+				'edit_others_pages' => false,
+				'delete_others_pages' => false,
+				
+				'upload_files' => false,         // NO Media
+				'delete_users' => false,         // NO User management
+				'edit_users' => false,
+				'manage_options' => false,       // NO Settings
+				'manage_plugins' => false,       // NO Plugins
+				'manage_themes' => false,        // NO Themes
+				'manage_categories' => false,    // NO Taxonomies
+				'manage_links' => false,         // NO Links
+				'moderate_comments' => false,    // NO Comments
 			]
 		);
 	}
 	
+	/**
+	 * Restrict admin menu for demo users
+	 * 
+	 * Demo users should ONLY see:
+	 * - Dashboard (read-only)
+	 * - Demo Pages (CPT)
+	 * - ChurchTools Suite (read-only dashboard)
+	 * 
+	 * Hide all other menus via capabilities
+	 * 
+	 * @since 1.0.7.2
+	 */
+	public function restrict_demo_user_capabilities(): void {
+		$user = wp_get_current_user();
+		
+		// Only apply to demo users
+		if ( ! in_array( 'cts_demo_user', (array) $user->roles, true ) ) {
+			return;
+		}
+		
+		// Explicitly deny access to prohibited admin pages
+		global $pagenow;
+		
+		// List of restricted pages
+		$restricted_pages = [
+			'users.php',              // Users
+			'edit-comments.php',      // Comments
+			'edit.php',               // Posts
+			'edit.php?post_type=page', // Pages
+			'upload.php',             // Media
+			'edit.php?post_type=cpt', // Other CPTs
+			'tools.php',              // Tools
+			'options-general.php',    // Settings
+			'plugins.php',            // Plugins
+			'themes.php',             // Themes
+			'admin.php',              // Custom admin pages
+		];
+		
+		// If user tries to access restricted page, redirect to dashboard
+		if ( is_admin() && ! in_array( $pagenow, [ 'index.php', 'post.php', 'edit.php', 'upload.php' ], true ) ) {
+			// Check if current page is not dashboard and not demo pages
+			global $current_screen;
+			if ( $current_screen && $current_screen->post_type !== 'cts_demo_page' ) {
+				wp_safe_remote_post( admin_url( 'admin-ajax.php' ), [ // Trigger redirect on next page load
+					'blocking' => false,
+					'timeout'  => 0.01,
+				] );
+			}
+		}
+	}
+
 	/**
 	 * Register shortcodes
 	 */
@@ -283,17 +431,26 @@ class ChurchTools_Suite_Demo {
 			$result = $this->registration_service->verify_email( $token );
 			
 			if ( is_wp_error( $result ) ) {
+				$error_code = $result->get_error_code();
+				
+				// Already verified - show friendly message and redirect to login
+				if ( $error_code === 'already_verified' ) {
+					wp_die(
+						'<h1>✅ E-Mail bereits verifiziert</h1>' .
+						'<p>Ihr Account wurde bereits aktiviert. Sie können sich jetzt anmelden.</p>' .
+						'<p><a href="' . esc_url( wp_login_url() ) . '" class="button button-primary">Zum Login</a></p>',
+						'Bereits verifiziert'
+					);
+				}
+				
+				// Other errors - show error message
 				wp_die(
 					$result->get_error_message(),
-					__( 'Verifizierung fehlgeschlagen', 'churchtools-suite-demo' ),
+					'Verifizierung fehlgeschlagen',
 					[ 'back_link' => true ]
 				);
 			}
 			
-			// Auto-login
-			$this->registration_service->auto_login( $result['wp_user_id'] );
-			
-			// Redirect to admin
 			wp_safe_redirect( admin_url() );
 			exit;
 		}
@@ -311,7 +468,7 @@ class ChurchTools_Suite_Demo {
 		
 		// Simulate successful sync
 		wp_send_json_success( [
-			'message' => __( 'Demo-Modus: Kalender-Synchronisation simuliert', 'churchtools-suite-demo' ),
+			'message' => 'Demo-Modus: Kalender-Synchronisation simuliert',
 			'calendars_found' => 6,
 			'calendars_created' => 0,
 			'calendars_updated' => 0,
@@ -339,7 +496,7 @@ class ChurchTools_Suite_Demo {
 		
 		// Simulate successful sync
 		wp_send_json_success( [
-			'message' => __( 'Demo-Modus: Event-Synchronisation simuliert', 'churchtools-suite-demo' ),
+			'message' => 'Demo-Modus: Event-Synchronisation simuliert',
 			'calendars_processed' => 6,
 			'events_found' => (int) $count,
 			'events_inserted' => $seed_stats['created'] ?? 0,
@@ -361,7 +518,7 @@ class ChurchTools_Suite_Demo {
 		
 		// Simulate successful connection
 		wp_send_json_success( [
-			'message' => __( 'Demo-Modus: Verbindung simuliert (keine echte API-Verbindung)', 'churchtools-suite-demo' ),
+			'message' => 'Demo-Modus: Verbindung simuliert (keine echte API-Verbindung)',
 		] );
 	}
 	
@@ -377,99 +534,8 @@ class ChurchTools_Suite_Demo {
 		
 		// Prevent changes in demo mode
 		wp_send_json_error( [
-			'message' => __( 'Demo-Modus: Kalenderauswahl kann nicht geändert werden', 'churchtools-suite-demo' ),
+			'message' => 'Demo-Modus: Kalenderauswahl kann nicht geändert werden',
 		] );
-	}
-	
-	/**
-	 * Provide demo events (filter hook)
-	 *
-	 * @param array $events  Original events
-	 * @param array $filters Query filters
-	 * @return array Demo events
-	 */
-	public function provide_demo_events( array $events, array $filters ): array {
-		// Debug logging
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			error_log( 'ChurchTools Suite Demo: Filter called with ' . count( $events ) . ' input events' );
-			error_log( 'ChurchTools Suite Demo: Filters: ' . print_r( $filters, true ) );
-		}
-		
-		$demo_provider = new ChurchTools_Suite_Demo_Data_Provider();
-		
-		$demo_args = [
-			'from' => $filters['from'] ?? date( 'Y-m-d H:i:s' ),
-			'to' => $filters['to'] ?? date( 'Y-m-d H:i:s', strtotime( '+90 days' ) ),
-			'limit' => $filters['limit'] ?? 20,
-			'calendar_ids' => $filters['calendar_ids'] ?? [],
-		];
-		
-		$demo_events = $demo_provider->get_events( $demo_args );
-		
-		// Format events for template compatibility
-		$demo_events = array_map( [ $this, 'format_demo_event' ], $demo_events );
-		
-		// Debug logging
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			error_log( 'ChurchTools Suite Demo: Returning ' . count( $demo_events ) . ' demo events' );
-		}
-		
-		return $demo_events;
-	}
-	
-	/**
-	 * Format demo event for template compatibility
-	 *
-	 * @param array $event Raw demo event
-	 * @return array Formatted event
-	 */
-	private function format_demo_event( array $event ): array {
-		// WordPress date/time formats
-		$date_format = get_option( 'date_format', 'd.m.Y' );
-		$time_format = get_option( 'time_format', 'H:i' );
-		
-		$start_timestamp = strtotime( $event['start_datetime'] );
-		$end_timestamp = ! empty( $event['end_datetime'] ) ? strtotime( $event['end_datetime'] ) : null;
-		
-		// Add formatted date/time fields
-		$event['start_date'] = date_i18n( $date_format, $start_timestamp );
-		$event['start_time'] = date_i18n( $time_format, $start_timestamp );
-		$event['start_day'] = date_i18n( 'd', $start_timestamp );
-		$event['start_month'] = date_i18n( 'F', $start_timestamp );
-		$event['start_month_short'] = date_i18n( 'M', $start_timestamp );
-		$event['start_year'] = date_i18n( 'Y', $start_timestamp );
-		$event['start_weekday'] = date_i18n( 'l', $start_timestamp );
-		
-		if ( $end_timestamp ) {
-			$event['end_date'] = date_i18n( $date_format, $end_timestamp );
-			$event['end_time'] = date_i18n( $time_format, $end_timestamp );
-		} else {
-			$event['end_date'] = '';
-			$event['end_time'] = '';
-		}
-		
-		// Calendar color (from demo calendars)
-		$calendar_colors = [
-			'1' => '#2563eb',
-			'2' => '#16a34a',
-			'3' => '#dc2626',
-			'4' => '#9333ea',
-			'5' => '#ea580c',
-			'6' => '#0891b2',
-		];
-		$event['calendar_color'] = $calendar_colors[ $event['calendar_id'] ] ?? '#667eea';
-		
-		// Location (combine address fields if available)
-		if ( ! empty( $event['address_city'] ) ) {
-			$event['location'] = $event['address_city'];
-		} else {
-			$event['location'] = $event['location_name'] ?? '';
-		}
-		
-		// Services (empty for demo events, could be extended later)
-		$event['services'] = [];
-		
-		return $event;
 	}
 	
 	/**
@@ -539,10 +605,10 @@ class ChurchTools_Suite_Demo {
 			return;
 		}
 		
-		// Assign cts_manager role (requires ChurchTools Suite to be active)
+		// Assign cts_demo_user role (v1.0.7.3: Deprecated cts_manager, use cts_demo_user instead)
 		$user = new WP_User( $user_id );
-		if ( method_exists( $user, 'add_role' ) ) {
-			$user->add_role( 'cts_manager' );
+		if ( method_exists( $user, 'set_role' ) ) {
+			$user->set_role( 'cts_demo_user' );
 		}
 		
 		// Log success
@@ -617,6 +683,422 @@ class ChurchTools_Suite_Demo {
 				[ 'table' => $table_name ]
 			);
 		}
+	}
+	
+	/**
+	 * Enqueue frontend CSS for Demo Pages
+	 * 
+	 * Adds professional styling for single demo page display on frontend
+	 * 
+	 * @since 1.0.7.4
+	 */
+	public function enqueue_frontend_styles(): void {
+		// Only enqueue on single demo page posts
+		if ( ! is_singular( 'cts_demo_page' ) ) {
+			return;
+		}
+		
+		// Register and enqueue demo pages frontend CSS
+		wp_enqueue_style(
+			'cts-demo-pages-frontend',
+			CHURCHTOOLS_SUITE_DEMO_URL . 'assets/css/demo-pages-frontend.css',
+			[],
+			CHURCHTOOLS_SUITE_DEMO_VERSION,
+			'all'
+		);
+	}
+	
+	/**
+	 * Add demo info banner above content on view pages only
+	 * 
+	 * Shows a helpful banner on specific demo view pages only,
+	 * to guide users on creating their own demo pages.
+	 * 
+	 * @param string $content Page content
+	 * @return string Modified content
+	 */
+	public function add_demo_info_banner( string $content ): string {
+		// Only on frontend, not in admin
+		if ( is_admin() ) {
+			return $content;
+		}
+		
+		// Only on view pages
+		global $post;
+		if ( ! $post ) {
+			return $content;
+		}
+		
+		// Check if page title starts with view-specific prefixes
+		$view_prefixes = [
+			'Listen:',
+			'Karten:',
+			'Kalender:',
+			'Grid:',
+			'Slider:',
+			'Countdown:',
+		];
+		
+		$is_view_page = false;
+		foreach ( $view_prefixes as $prefix ) {
+			if ( strpos( $post->post_title, $prefix ) === 0 ) {
+				$is_view_page = true;
+				break;
+			}
+		}
+		
+		if ( ! $is_view_page ) {
+			return $content;
+		}
+		
+		// Additional safety check: only if shortcode present
+		if ( ! has_shortcode( $content, 'cts_list' ) && 
+		     ! has_shortcode( $content, 'cts_grid' ) && 
+		     ! has_shortcode( $content, 'cts_calendar' ) &&
+		     ! has_shortcode( $content, 'cts_countdown' ) &&
+		     ! has_shortcode( $content, 'cts_slider' ) ) {
+			return $content;
+		}
+		
+		// Banner HTML
+		$banner = '
+		<div class="cts-demo-info-banner" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 1.5rem; border-radius: 8px; margin: 0 0 2rem 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+			<div style="display: flex; align-items: center; gap: 1rem;">
+				<span style="font-size: 2rem; flex-shrink: 0;">💡</span>
+				<div>
+					<h3 style="margin: 0 0 0.5rem 0; font-size: 1.1rem; color: white; font-weight: 600;">Eigene Demo-Seiten erstellen</h3>
+					<p style="margin: 0; font-size: 0.95rem; line-height: 1.5; opacity: 0.95;">
+						Sie können im Backend eigene Seiten mit individuellen Einstellungen erstellen!<br>
+						<strong style="color: #fbbf24;">→ Demo Pages > Neue Seite hinzufügen</strong><br>
+						Verwenden Sie den Gutenberg-Block <strong>"ChurchTools Events"</strong> oder Shortcodes wie <code style="background: rgba(255,255,255,0.2); padding: 0.2rem 0.4rem; border-radius: 3px; font-size: 0.9rem;">[cts_list view="minimal"]</code>
+					</p>
+				</div>
+			</div>
+		</div>';
+		
+		return $banner . $content;
+	}
+	
+	/**
+	 * Inject demo mode UI into Settings tab (v1.0.7.0)
+	 */
+	public function inject_demo_mode_ui( $hook ): void {
+		// Only on ChurchTools Suite admin pages
+		if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'churchtools-suite' ) {
+			return;
+		}
+		
+		// Only on Settings tab
+		if ( ! isset( $_GET['tab'] ) || $_GET['tab'] !== 'settings' ) {
+			return;
+		}
+		
+		// Only on API subtab
+		if ( ! isset( $_GET['subtab'] ) || $_GET['subtab'] !== 'api' ) {
+			return;
+		}
+		
+		// Only for demo users
+		if ( ! current_user_can( 'cts_demo_user' ) ) {
+			return;
+		}
+		
+		// Buffer output and inject demo mode UI
+		ob_start( function( $content ) {
+			// Find the API card and inject demo mode toggle before it
+			$demo_ui = file_get_contents( CHURCHTOOLS_SUITE_DEMO_PATH . 'admin/views/settings-override-api.php' );
+			$demo_ui = eval( '?>' . $demo_ui );
+			
+			// Inject before first form
+			$content = preg_replace( 
+				'/(<form[^>]*method="post"[^>]*>)/',
+				ob_get_clean() . '$1',
+				$content,
+				1
+			);
+			
+			return $content;
+		} );
+	}
+	
+	/**
+	 * Handle demo mode toggle (v1.0.7.0)
+	 */
+	public function ajax_toggle_demo_mode(): void {
+		check_ajax_referer( 'cts_demo_toggle', 'nonce' );
+		
+		if ( ! current_user_can( 'cts_demo_user' ) ) {
+			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
+		}
+		
+		$enabled = ! empty( $_POST['enabled'] );
+		$user_id = get_current_user_id();
+		
+		// Load user settings class
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-user-settings.php';
+		
+		// Toggle mode
+		ChurchTools_Suite_User_Settings::set_demo_mode( $enabled, $user_id );
+		
+		// Log
+		error_log( sprintf(
+			'[ChurchTools Demo] User %d toggled demo mode: %s',
+			$user_id,
+			$enabled ? 'enabled' : 'disabled'
+		) );
+		
+		wp_send_json_success( [
+			'message' => $enabled 
+				? 'Demo-Modus aktiviert - Sie nutzen jetzt vorkonfigurierte Demo-Daten'
+				: 'Demo-Modus deaktiviert - Sie können jetzt Ihre eigene ChurchTools-Instanz konfigurieren'
+		] );
+	}
+	
+	/**
+	 * Register custom menu location for demo pages (v1.0.7.0)
+	 */
+	public function register_demo_menu_location(): void {
+		register_nav_menus( [
+			'demo-pages' => __( 'Demo Pages Menu (automatisch)', 'churchtools-suite' ),
+		] );
+	}
+	
+	/**
+	 * Add user's demo pages to menu (v1.0.7.0)
+	 * 
+	 * Automatically adds the logged-in user's demo pages to any menu
+	 * assigned to the 'demo-pages' location.
+	 *
+	 * @param string $items Menu HTML
+	 * @param object $args Menu args
+	 * @return string Modified menu HTML
+	 */
+	public function add_demo_pages_to_menu( string $items, $args ): string {
+		// Only for demo-pages menu location
+		if ( ! isset( $args->theme_location ) || $args->theme_location !== 'demo-pages' ) {
+			return $items;
+		}
+		
+		// Only for logged-in demo users
+		if ( ! is_user_logged_in() || ! current_user_can( 'cts_demo_user' ) ) {
+			return $items;
+		}
+		
+		// Get user's demo pages
+		$demo_pages = get_posts( [
+			'post_type' => 'cts_demo_page',
+			'author' => get_current_user_id(),
+			'posts_per_page' => -1,
+			'orderby' => 'title',
+			'order' => 'ASC',
+			'post_status' => 'publish',
+		] );
+		
+		if ( empty( $demo_pages ) ) {
+			// No pages yet - show hint
+			$items .= '<li class="menu-item no-demo-pages">';
+			$items .= '<a href="' . admin_url( 'post-new.php?post_type=cts_demo_page' ) . '">';
+			$items .= '➕ ' . __( 'Erste Demo-Seite erstellen', 'churchtools-suite' );
+			$items .= '</a></li>';
+			return $items;
+		}
+		
+		// Add pages to menu
+		foreach ( $demo_pages as $page ) {
+			$items .= sprintf(
+				'<li class="menu-item menu-item-demo-page"><a href="%s">📄 %s</a></li>',
+				get_permalink( $page->ID ),
+				esc_html( $page->post_title )
+			);
+		}
+		
+		// Add "Create new" link
+		$items .= '<li class="menu-item menu-item-create-demo">';
+		$items .= '<a href="' . admin_url( 'post-new.php?post_type=cts_demo_page' ) . '">';
+		$items .= '➕ ' . __( 'Neue Seite', 'churchtools-suite' );
+		$items .= '</a></li>';
+		
+		return $items;
+	}
+	
+	/**
+	 * Add demo pages to admin bar (v1.0.7.0)
+	 *
+	 * @param WP_Admin_Bar $wp_admin_bar
+	 */
+	public function add_demo_pages_to_admin_bar( $wp_admin_bar ): void {
+		// Only for logged-in demo users
+		if ( ! is_user_logged_in() || ! current_user_can( 'cts_demo_user' ) ) {
+			return;
+		}
+		
+		// Get user's demo pages
+		$demo_pages = get_posts( [
+			'post_type' => 'cts_demo_page',
+			'author' => get_current_user_id(),
+			'posts_per_page' => 10,
+			'orderby' => 'modified',
+			'order' => 'DESC',
+			'post_status' => 'publish',
+		] );
+		
+		// Add parent menu
+		$wp_admin_bar->add_node( [
+			'id' => 'demo-pages',
+			'title' => '📄 Meine Demo-Seiten (' . count( $demo_pages ) . ')',
+			'href' => admin_url( 'edit.php?post_type=cts_demo_page' ),
+		] );
+		
+		// Add pages as submenu
+		if ( ! empty( $demo_pages ) ) {
+			foreach ( $demo_pages as $page ) {
+				$wp_admin_bar->add_node( [
+					'parent' => 'demo-pages',
+					'id' => 'demo-page-' . $page->ID,
+					'title' => esc_html( $page->post_title ),
+					'href' => get_permalink( $page->ID ),
+				] );
+			}
+			
+			// Separator
+			$wp_admin_bar->add_node( [
+				'parent' => 'demo-pages',
+				'id' => 'demo-pages-divider',
+				'title' => '—',
+				'meta' => [ 'class' => 'ab-sub-secondary' ],
+			] );
+		}
+		
+		// Add "Create new" link
+		$wp_admin_bar->add_node( [
+			'parent' => 'demo-pages',
+			'id' => 'demo-pages-new',
+			'title' => '➕ Neue Seite erstellen',
+			'href' => admin_url( 'post-new.php?post_type=cts_demo_page' ),
+		] );
+		
+		// Add "Manage all" link
+		$wp_admin_bar->add_node( [
+			'parent' => 'demo-pages',
+			'id' => 'demo-pages-manage',
+			'title' => '⚙️ Alle verwalten',
+			'href' => admin_url( 'edit.php?post_type=cts_demo_page' ),
+		] );
+	}
+	
+	/**
+	 * Setup demo repository overrides (v1.0.7.0)
+	 * 
+	 * Temporarily replaces main plugin repository classes with demo versions
+	 * for current demo user. This allows shortcodes to automatically use isolated
+	 * demo data without modifying main plugin code.
+	 * 
+	 * Uses PHP class_alias to redirect class names.
+	 */
+	/**
+	 * Setup demo repository overrides (v1.0.7.0)
+	 * 
+	 * Registers filter hooks to override main plugin repositories with isolated demo versions.
+	 * Uses Repository Factory pattern from main plugin v1.0.8.0+.
+	 * 
+	 * Filters are registered globally but only activate for demo users (checked in override methods).
+	 */
+	public function setup_demo_repository_overrides(): void {
+		// Check if main plugin has Repository Factory (v1.0.8.0+)
+		if ( ! function_exists( 'churchtools_suite_get_repository' ) ) {
+			// Fallback: Main plugin not updated yet
+			error_log( '[ChurchTools Demo] WARNING: Main plugin needs v1.0.8.0+ for Repository Factory' );
+			return;
+		}
+		
+		// Register filters to override repositories
+		// Note: Filters check user role internally before returning demo repositories
+		add_filter( 'churchtools_suite_get_events_repository', [ $this, 'override_events_repository' ], 10, 2 );
+		add_filter( 'churchtools_suite_get_calendars_repository', [ $this, 'override_calendars_repository' ], 10, 2 );
+		add_filter( 'churchtools_suite_get_services_repository', [ $this, 'override_services_repository' ], 10, 2 );
+		add_filter( 'churchtools_suite_get_event_services_repository', [ $this, 'override_event_services_repository' ], 10, 2 );
+	}
+	
+	/**
+	 * Override Events Repository for demo users (v1.0.7.0)
+	 * 
+	 * Returns isolated demo repository when user is demo user.
+	 * This ensures demo users only see their own events.
+	 *
+	 * @param mixed $repository Default repository (ignored)
+	 * @param int|null $user_id User ID (optional)
+	 * @return mixed Demo repository or original
+	 */
+	public function override_events_repository( $repository, $user_id = null ) {
+		// Get current user if not specified
+		if ( ! $user_id ) {
+			$user_id = get_current_user_id();
+		}
+		
+		// Check if user is demo user
+		if ( $user_id && user_can( $user_id, 'cts_demo_user' ) ) {
+			return new ChurchTools_Suite_Demo_Events_Repository( $user_id );
+		}
+		
+		return $repository;
+	}
+	
+	/**
+	 * Override Calendars Repository for demo users (v1.0.7.0)
+	 *
+	 * @param mixed $repository Default repository (ignored)
+	 * @param int|null $user_id User ID (optional)
+	 * @return mixed Demo repository or original
+	 */
+	public function override_calendars_repository( $repository, $user_id = null ) {
+		// Get current user if not specified
+		if ( ! $user_id ) {
+			$user_id = get_current_user_id();
+		}
+		
+		// Check if user is demo user
+		if ( $user_id && user_can( $user_id, 'cts_demo_user' ) ) {
+			return new ChurchTools_Suite_Demo_Calendars_Repository( $user_id );
+		}
+		
+		return $repository;
+	}
+	
+	/**
+	 * Override Services Repository for demo users (v1.0.7.0)
+	 *
+	 * @param mixed $repository Default repository (ignored)
+	 * @param int|null $user_id User ID (optional)
+	 * @return mixed Demo repository or original
+	 */
+	public function override_services_repository( $repository, $user_id = null ) {
+		// Get current user if not specified
+		if ( ! $user_id ) {
+			$user_id = get_current_user_id();
+		}
+		
+		// Check if user is demo user
+		if ( $user_id && user_can( $user_id, 'cts_demo_user' ) ) {
+			return new ChurchTools_Suite_Demo_Services_Repository( $user_id );
+		}
+		
+		return $repository;
+	}
+	
+	/**
+	 * Override Event Services Repository for demo users (v1.0.7.0)
+	 * 
+	 * Note: Demo plugin doesn't have separate event_services table yet.
+	 * Returns null to use main plugin's repository (services are part of events).
+	 *
+	 * @param mixed $repository Default repository (ignored)
+	 * @param int|null $user_id User ID (optional)
+	 * @return mixed Demo repository or original
+	 */
+	public function override_event_services_repository( $repository, $user_id = null ) {
+		// Demo plugin doesn't have event_services table isolation yet
+		// Services are stored within events, so this is handled by events repository
+		return $repository;
 	}
 }
 

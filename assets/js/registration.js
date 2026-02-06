@@ -37,7 +37,10 @@
 				action: 'cts_demo_register',
 				nonce: ctsDemo.nonce,
 				email: $('#cts-demo-email').val(),
-				name: $('#cts-demo-name').val(),
+				first_name: $('#cts-demo-first-name').val(),
+				last_name: $('#cts-demo-last-name').val(),
+				password: $('#cts-demo-password').val(),
+				password_confirm: $('#cts-demo-password-confirm').val(),
 				company: $('#cts-demo-company').val(),
 				purpose: $('#cts-demo-purpose').val(),
 				privacy_accepted: $('#cts-demo-privacy').is(':checked') ? 1 : 0
@@ -52,6 +55,13 @@
 					if (response.success) {
 						showMessage('success', response.data.message);
 						$form[0].reset();
+						
+						// Auto-redirect to dashboard after successful registration
+						if (response.data.redirect) {
+							setTimeout(function() {
+								window.location.href = response.data.redirect;
+							}, 2000);
+						}
 						
 						// Scroll to message
 						$('html, body').animate({

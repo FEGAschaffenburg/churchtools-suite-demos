@@ -40,6 +40,8 @@ class ChurchTools_Suite_Demo_Admin {
 		// Register AJAX handlers
 		add_action( 'wp_ajax_cts_demo_delete_user', [ $this, 'ajax_delete_user' ] );
 		add_action( 'wp_ajax_cts_demo_export_users', [ $this, 'ajax_export_users' ] );
+		add_action( 'wp_ajax_cts_demo_resend_email', [ $this, 'ajax_resend_email' ] );
+		add_action( 'wp_ajax_cts_demo_manual_verify', [ $this, 'ajax_manual_verify' ] );
 	}
 	
 	/**
@@ -48,9 +50,9 @@ class ChurchTools_Suite_Demo_Admin {
 	public function add_submenu(): void {
 		add_submenu_page(
 			'churchtools-suite',
-			__( 'Demo-Registrierungen', 'churchtools-suite-demo' ),
-			__( 'Demo-Users', 'churchtools-suite-demo' ),
-			'manage_churchtools_suite', // v1.0.3.1: Use same capability as main plugin
+			'Demo-Registrierungen',
+			'Demo-Users',
+			'manage_churchtools_suite',
 			'churchtools-suite-demo',
 			[ $this, 'render_admin_page' ]
 		);
@@ -151,5 +153,86 @@ class ChurchTools_Suite_Demo_Admin {
 		
 		fclose( $output );
 		exit;
+	}
+	
+	/**
+	 * AJAX: Resend verification email
+	 */
+	public function ajax_resend_email(): void {
+		check_ajax_referer( 'cts_demo_admin', 'nonce' );
+		
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
+		}
+		
+		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		
+		if ( ! $id ) {
+			wp_send_json_error( [ 'message' => 'Ungültige ID' ] );
+		}
+		
+		$user = $this->repo->get_by_id( $id );
+		
+		if ( ! $user ) {
+			wp_send_json_error( [ 'message' => 'Benutzer nicht gefunden' ] );
+		}
+		
+		if ( $user->verified_at ) {
+			wp_send_json_error( [ 'message' => 'Benutzer ist bereits verifiziert' ] );
+		}
+		
+		// Get registration service
+		$registration_service = ChurchTools_Suite_Demo::instance()->registration_service;
+		
+		// Resend verification email
+		$result = $registration_service->resend_verification_email( $user->email, $user->verification_token );
+		
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+		}
+		
+		wp_send_json_success( [ 'message' => 'Verifizierungs-E-Mail wurde erneut gesendet' ] );
+	}
+	
+	/**
+	 * AJAX: Manually verify user
+	 */
+	public function ajax_manual_verify(): void {
+		check_ajax_referer( 'cts_demo_admin', 'nonce' );
+		
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
+		}
+		
+		$id = isset( $_POST['id'] ) ? absint( $_POST['id'] ) : 0;
+		
+		if ( ! $id ) {
+			wp_send_json_error( [ 'message' => 'Ungültige ID' ] );
+		}
+		
+		$user = $this->repo->get_by_id( $id );
+		
+		if ( ! $user ) {
+			wp_send_json_error( [ 'message' => 'Benutzer nicht gefunden' ] );
+		}
+		
+		if ( $user->verified_at ) {
+			wp_send_json_error( [ 'message' => 'Benutzer ist bereits verifiziert' ] );
+		}
+		
+		// Get registration service
+		$registration_service = ChurchTools_Suite_Demo::instance()->registration_service;
+		
+		// Manually verify (creates WP user)
+		$result = $registration_service->verify_email( $user->verification_token );
+		
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( [ 'message' => $result->get_error_message() ] );
+		}
+		
+		wp_send_json_success( [ 
+			'message' => 'Benutzer wurde manuell verifiziert und WordPress-User erstellt',
+			'wp_user_id' => $result['wp_user_id']
+		] );
 	}
 }
