@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.8+
- * Version:           1.0.7.0
+ * Version:           1.0.7.1
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.7.0' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.0.7.1' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -118,6 +118,9 @@ class ChurchTools_Suite_Demo {
 		
 		// Register custom user role
 		$this->register_demo_role();
+		
+		// v1.0.7.1: Cleanup orphaned demo data (if demo mode is OFF but data still exists)
+		add_action( 'init', [ $this, 'cleanup_orphaned_demo_data' ] );
 		
 		// Register shortcodes
 		$this->register_shortcodes();
@@ -220,25 +223,33 @@ class ChurchTools_Suite_Demo {
 	}
 	
 	/**
-	 * Register custom demo user role
+	 * Register custom demo user role (v1.0.7.1: Added manage_churchtools_suite capability)
 	 * 
 	 * Demo User kann:
 	 * - ChurchTools Suite Dashboard ANSCHAUEN (READ-ONLY)
+	 * - Daten-Seite aufrufen (manage_churchtools_suite capability)
 	 * - Eigene Demo-Seiten (CPT) erstellen/bearbeiten/löschen
 	 * 
 	 * Demo User KANN NICHT:
-	 * - Einstellungen ändern
-	 * - Events synchronisieren
-	 * - Kalender/Services konfigurieren
+	 * - Einstellungen ändern (configure_churchtools_suite)
+	 * - Events synchronisieren (sync_churchtools_events)
+	 * - Kalender/Services konfigurieren (manage_churchtools_calendars)
 	 * - Andere User sehen
 	 * - Plugins/Themes verwalten
 	 * - Normale Posts/Pages sehen
 	 * - Dateien verwalten
 	 */
 	private function register_demo_role(): void {
-		// Remove old role if exists (for capability updates)
-		if ( get_role( 'cts_demo_user' ) ) {
-			remove_role( 'cts_demo_user' );
+		$role_exists = get_role( 'cts_demo_user' );
+		
+		// v1.0.7.1: Update existing role capabilities instead of removing
+		// (prevents user role reset on every page load)
+		if ( $role_exists ) {
+			// Add missing capability if not present
+			if ( ! $role_exists->has_cap( 'manage_churchtools_suite' ) ) {
+				$role_exists->add_cap( 'manage_churchtools_suite' );
+			}
+			return; // Role exists and is up-to-date
 		}
 		
 		// Create role with EXTREMELY LIMITED capabilities:
@@ -251,7 +262,7 @@ class ChurchTools_Suite_Demo {
 				'read' => true, // Can access admin area
 				
 				// === ChurchTools Suite - READ-ONLY Dashboard ===
-				'manage_churchtools_suite' => true, // Can VIEW menu + dashboard only
+				'manage_churchtools_suite' => true, // v1.0.7.1: Can VIEW menu + dashboard + Daten page
 				
 				// === NO ChurchTools modifications allowed ===
 				'view_churchtools_debug' => false,
@@ -341,15 +352,24 @@ class ChurchTools_Suite_Demo {
 			'admin.php',              // Custom admin pages
 		];
 		
-		// If user tries to access restricted page, redirect to dashboard
-		if ( is_admin() && ! in_array( $pagenow, [ 'index.php', 'post.php', 'edit.php', 'upload.php' ], true ) ) {
-			// Check if current page is not dashboard and not demo pages
+		// Allow ChurchTools Suite admin pages
+		$allowed_pages = [ 'index.php', 'post.php', 'edit.php', 'upload.php', 'admin.php' ];
+		$is_cts_page = ( $pagenow === 'admin.php' && isset( $_GET['page'] ) && $_GET['page'] === 'churchtools-suite' );
+		
+		// If user tries to access restricted page, block it (but allow ChurchTools Suite)
+		if ( is_admin() && ! in_array( $pagenow, $allowed_pages, true ) && ! $is_cts_page ) {
+			// Redirect to dashboard
+			wp_redirect( admin_url() );
+			exit;
+		}
+		
+		// For admin.php, only allow ChurchTools Suite
+		if ( $pagenow === 'admin.php' && ! $is_cts_page ) {
 			global $current_screen;
-			if ( $current_screen && $current_screen->post_type !== 'cts_demo_page' ) {
-				wp_safe_remote_post( admin_url( 'admin-ajax.php' ), [ // Trigger redirect on next page load
-					'blocking' => false,
-					'timeout'  => 0.01,
-				] );
+			// Allow Demo Pages CPT
+			if ( ! $current_screen || $current_screen->post_type !== 'cts_demo_page' ) {
+				wp_redirect( admin_url() );
+				exit;
 			}
 		}
 	}
@@ -822,7 +842,7 @@ class ChurchTools_Suite_Demo {
 	}
 	
 	/**
-	 * Handle demo mode toggle (v1.0.7.0)
+	 * Handle demo mode toggle (v1.0.7.1: Delete demo data when disabled, import when enabled)
 	 */
 	public function ajax_toggle_demo_mode(): void {
 		check_ajax_referer( 'cts_demo_toggle', 'nonce' );
@@ -837,8 +857,26 @@ class ChurchTools_Suite_Demo {
 		// Load user settings class
 		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-user-settings.php';
 		
-		// Toggle mode
-		ChurchTools_Suite_User_Settings::set_demo_mode( $enabled, $user_id );
+		if ( $enabled ) {
+			// v1.0.7.1: Import demo data when activating
+			$this->import_demo_data_for_user( $user_id );
+			
+			// Toggle mode to ON
+			ChurchTools_Suite_User_Settings::set_demo_mode( true, $user_id );
+			
+			// Clear cleanup transient (allow future cleanup if disabled again)
+			delete_transient( "cts_demo_cleanup_done_{$user_id}" );
+			
+			$message = 'Demo-Modus aktiviert - Demo-Daten wurden importiert';
+		} else {
+			// v1.0.7.1: Delete demo data when disabling
+			$this->delete_user_demo_data( $user_id );
+			
+			// Toggle mode to OFF
+			ChurchTools_Suite_User_Settings::set_demo_mode( false, $user_id );
+			
+			$message = 'Demo-Modus deaktiviert - Alle Demo-Daten wurden gelöscht';
+		}
 		
 		// Log
 		error_log( sprintf(
@@ -847,11 +885,278 @@ class ChurchTools_Suite_Demo {
 			$enabled ? 'enabled' : 'disabled'
 		) );
 		
-		wp_send_json_success( [
-			'message' => $enabled 
-				? 'Demo-Modus aktiviert - Sie nutzen jetzt vorkonfigurierte Demo-Daten'
-				: 'Demo-Modus deaktiviert - Sie können jetzt Ihre eigene ChurchTools-Instanz konfigurieren'
+		wp_send_json_success( [ 'message' => $message ] );
+	}
+	
+	/**
+	 * Import demo data for user (v1.0.7.1)
+	 * 
+	 * Seeds database with hardcoded demo data for immediate testing.
+	 * Much faster than API import, uses Demo Data Provider's built-in data.
+	 *
+	 * @param int $user_id WordPress user ID
+	 */
+	private function import_demo_data_for_user( int $user_id ): void {
+		error_log( "[ChurchTools Demo] Seeding demo data for user {$user_id}" );
+		
+		// Load Demo Data Provider (has hardcoded demo data)
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/services/class-demo-data-provider.php';
+		$provider = new ChurchTools_Suite_Demo_Data_Provider();
+		
+		// Load Demo Repositories
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/repositories/class-demo-calendars-repository.php';
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/repositories/class-demo-events-repository.php';
+		
+		$calendars_repo = new ChurchTools_Suite_Demo_Calendars_Repository( $user_id );
+		$events_repo = new ChurchTools_Suite_Demo_Events_Repository( $user_id );
+		
+		// Import calendars (hardcoded from Demo Data Provider)
+		$demo_calendars = $provider->get_demo_calendars_raw();
+		$cal_count = 0;
+		foreach ( $demo_calendars as $calendar ) {
+			if ( $calendars_repo->upsert( $calendar ) ) {
+				$cal_count++;
+			}
+		}
+		
+		// Import events (generate from now + 90 days)
+		$from = current_time( 'Y-m-d' );
+		$to = date( 'Y-m-d', current_time( 'timestamp' ) + 90 * DAY_IN_SECONDS );
+		
+		// Use public get_events() method to load demo data
+		$demo_events = $provider->get_events( [
+			'from' => $from,
+			'to' => $to,
+			'limit' => 100,
+			'calendar_ids' => [], // All calendars
 		] );
+		
+		$event_count = 0;
+		foreach ( $demo_events as $event ) {
+			// Add required fields for repository
+			$event_data = [
+				'event_id' => $event['id'] ?? null,
+				'calendar_id' => $event['calendar_id'] ?? '1',
+				'appointment_id' => $event['appointment_id'] ?? $event['id'],
+				'title' => $event['title'],
+				'event_description' => $event['description'] ?? '',
+				'start_datetime' => $event['start_datetime'],
+				'end_datetime' => $event['end_datetime'] ?? null,
+				'location_name' => $event['location'] ?? '',
+				'raw_payload' => wp_json_encode( $event ),
+			];
+			
+			if ( $events_repo->upsert( $event_data ) ) {
+				$event_count++;
+			}
+		}
+		
+		error_log( sprintf(
+			'[ChurchTools Demo] Seeded %d calendars and %d events for user %d',
+			$cal_count,
+			$event_count,
+			$user_id
+		) );
+	}
+	
+	/**
+	 * Delete all demo data for a specific user (v1.0.7.1)
+	 * 
+	 * Multi-User safe: Only deletes data for the specified user_id
+	 * Uses DEMO tables (demo_cts_*) not main plugin tables!
+	 *
+	 * @param int $user_id WordPress user ID
+	 */
+	private function delete_user_demo_data( int $user_id ): void {
+		global $wpdb;
+		
+		// Get DEMO table names (demo_cts_* not cts_*)
+		$events_table = $wpdb->prefix . 'demo_cts_events';
+		$calendars_table = $wpdb->prefix . 'demo_cts_calendars';
+		$services_table = $wpdb->prefix . 'demo_cts_services';
+		
+		// Count before deletion (for logging)
+		$events_count = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$events_table} WHERE user_id = %d",
+			$user_id
+		) );
+		
+		$calendars_count = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$calendars_table} WHERE user_id = %d",
+			$user_id
+		) );
+		
+		$services_count = (int) $wpdb->get_var( $wpdb->prepare(
+			"SELECT COUNT(*) FROM {$services_table} WHERE user_id = %d",
+			$user_id
+		) );
+		
+		// Delete all events for this user from DEMO table
+		$wpdb->query( $wpdb->prepare(
+			"DELETE FROM {$events_table} WHERE user_id = %d",
+			$user_id
+		) );
+		
+		// Delete all calendars for this user from DEMO table
+		$wpdb->query( $wpdb->prepare(
+			"DELETE FROM {$calendars_table} WHERE user_id = %d",
+			$user_id
+		) );
+		
+		// Delete all services for this user from DEMO table
+		$wpdb->query( $wpdb->prepare(
+			"DELETE FROM {$services_table} WHERE user_id = %d",
+			$user_id
+		) );
+		
+		// Clear any cached counts
+		wp_cache_delete( "cts_events_count_{$user_id}" );
+		wp_cache_delete( "cts_calendars_count_{$user_id}" );
+		
+		// Log deletion
+		error_log( sprintf(
+			'[ChurchTools Demo] Deleted demo data for user %d: %d events, %d calendars, %d services',
+			$user_id,
+			$events_count,
+			$calendars_count,
+			$services_count
+		) );
+	}
+	
+	/**
+	 * Cleanup orphaned demo data (v1.0.7.1)
+	 * 
+	 * Runs ONCE per user - deletes demo data if demo mode is OFF.
+	 * Prevents old demo data from showing when user disables demo mode.
+	 */
+	public function cleanup_orphaned_demo_data(): void {
+		// Only for logged-in demo users
+		if ( ! is_user_logged_in() || ! current_user_can( 'cts_demo_user' ) ) {
+			return;
+		}
+		
+		$user_id = get_current_user_id();
+		
+		// Check if cleanup already done (transient prevents repeated checks)
+		$cleanup_done = get_transient( "cts_demo_cleanup_done_{$user_id}" );
+		if ( $cleanup_done ) {
+			return; // Already cleaned up, skip
+		}
+		
+		// Load user settings
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-user-settings.php';
+		
+		// Check if demo mode is OFF
+		$demo_mode = ChurchTools_Suite_User_Settings::is_demo_mode( $user_id );
+		
+		if ( ! $demo_mode ) {
+			// Demo mode is OFF - delete orphaned data
+			$this->delete_user_demo_data( $user_id );
+			
+			// Mark cleanup as done (expires in 1 hour - allows re-import if user re-enables)
+			set_transient( "cts_demo_cleanup_done_{$user_id}", true, HOUR_IN_SECONDS );
+		}
+	}
+	
+	/**
+	 * Show demo mode banner in Settings > API tab
+	 * 
+	 * @since 1.0.7.1
+	 */
+	public function show_demo_mode_banner(): void {
+		// Only for demo users
+		if ( ! current_user_can( 'cts_demo_user' ) ) {
+			return;
+		}
+		
+		// Only on ChurchTools Suite settings page
+		$screen = get_current_screen();
+		if ( ! $screen || strpos( $screen->id, 'churchtools-suite' ) === false ) {
+			return;
+		}
+		
+		// Check if on API subtab
+		$tab = $_GET['tab'] ?? '';
+		$subtab = $_GET['subtab'] ?? '';
+		
+		if ( $tab !== 'settings' || $subtab !== 'api' ) {
+			return;
+		}
+		
+		// Check demo mode status
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-user-settings.php';
+		$demo_mode = ChurchTools_Suite_User_Settings::is_demo_mode();
+		
+		?>
+		<div class="notice notice-info" style="padding: 16px; border-left: 4px solid #0073aa;">
+			<div style="display: flex; align-items: start; gap: 12px;">
+				<span style="font-size: 24px;">ℹ️</span>
+				<div style="flex: 1;">
+					<?php if ( $demo_mode ) : ?>
+						<h3 style="margin: 0 0 8px 0;">Demo-Modus aktiv</h3>
+						<p style="margin: 0 0 12px 0;">
+							Sie nutzen aktuell vorkonfigurierte <strong>Demo-Daten</strong>. 
+							Um Ihre eigene ChurchTools-Instanz zu testen, deaktivieren Sie den Demo-Modus.
+						</p>
+						<button type="button" id="cts-demo-exit-btn" class="button button-primary">
+							🚀 Demo-Modus beenden & eigene Daten nutzen
+						</button>
+					<?php else : ?>
+						<h3 style="margin: 0 0 8px 0;">Eigene ChurchTools-Instanz</h3>
+						<p style="margin: 0 0 12px 0;">
+							Sie können jetzt Ihre <strong>eigenen ChurchTools-Zugangsdaten</strong> eingeben und testen.
+							Zum Zurückwechseln zu Demo-Daten klicken Sie unten.
+						</p>
+						<button type="button" id="cts-demo-reenter-btn" class="button">
+							🔙 Zurück zu Demo-Daten
+						</button>
+					<?php endif; ?>
+					<span id="cts-demo-toggle-result" style="display: none; margin-left: 12px;"></span>
+				</div>
+			</div>
+		</div>
+		
+		<script>
+		jQuery(document).ready(function($) {
+			const exitBtn = $('#cts-demo-exit-btn');
+			const reenterBtn = $('#cts-demo-reenter-btn');
+			const result = $('#cts-demo-toggle-result');
+			
+			function toggleDemoMode(enabled) {
+				const btn = enabled ? reenterBtn : exitBtn;
+				btn.prop('disabled', true).text('⏳ Bitte warten...');
+				
+				$.ajax({
+					url: ajaxurl,
+					method: 'POST',
+					data: {
+						action: 'cts_demo_toggle_mode',
+						nonce: '<?php echo wp_create_nonce( 'cts_demo_toggle' ); ?>',
+						enabled: enabled ? 1 : 0
+					},
+					success: function(response) {
+						if (response.success) {
+							result.text('✅ ' + response.data.message).css('color', '#46b450').show();
+							setTimeout(function() {
+								location.reload();
+							}, 1500);
+						} else {
+							result.text('❌ ' + response.data.message).css('color', '#dc3232').show();
+							btn.prop('disabled', false).text(enabled ? '🔙 Zurück zu Demo-Daten' : '🚀 Demo-Modus beenden');
+						}
+					},
+					error: function() {
+						result.text('❌ Fehler beim Umschalten').css('color', '#dc3232').show();
+						btn.prop('disabled', false).text(enabled ? '🔙 Zurück zu Demo-Daten' : '🚀 Demo-Modus beenden');
+					}
+				});
+			}
+			
+			exitBtn.on('click', function() { toggleDemoMode(false); });
+			reenterBtn.on('click', function() { toggleDemoMode(true); });
+		});
+		</script>
+		<?php
 	}
 	
 	/**

@@ -105,11 +105,49 @@ class ChurchTools_Suite_Demo_Data_Provider {
 	];
 	
 	/**
-	 * Get demo calendars
+	 * Get demo calendars (v1.0.7.1: Respects demo mode, admin-aware)
+	 * 
+	 * If demo mode is OFF AND not in admin, returns empty array (no demo calendars visible on frontend).
+	 * If in admin area (Daten-Seite), always returns calendars regardless of demo mode.
+	 * If demo mode is ON, returns demo calendars from database filtered by user_id.
 	 *
 	 * @return array
 	 */
 	public function get_calendars(): array {
+		// v1.0.7.1: Check if demo mode is active (only relevant for frontend)
+		$user_id = get_current_user_id();
+		$demo_mode = false;
+		
+		if ( class_exists( 'ChurchTools_Suite_User_Settings' ) ) {
+			$demo_mode = ChurchTools_Suite_User_Settings::is_demo_mode( $user_id );
+		}
+		
+		// v1.0.7.1: If demo mode is OFF AND not in admin area → hide calendars
+		// Admin area (Daten-Seite) always shows calendars for configuration/testing
+		if ( ! $demo_mode && ! is_admin() ) {
+			return [];
+		}
+		
+		// Try to load from database using Repository Factory
+		$factory_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-repository-factory.php';
+		if ( file_exists( $factory_path ) ) {
+			require_once $factory_path;
+			
+			if ( class_exists( 'ChurchTools_Suite_Repository_Factory' ) ) {
+				// Use factory to get user-specific calendars
+				$repo = ChurchTools_Suite_Repository_Factory::get_calendars_repo( $user_id );
+				$db_calendars = $repo->get_all();
+				
+				if ( ! empty( $db_calendars ) ) {
+					// Convert to array format
+					return array_map( function( $cal ) {
+						return (array) $cal;
+					}, $db_calendars );
+				}
+			}
+		}
+		
+		// Fallback to hardcoded demo calendars (initial data or backwards compatibility)
 		return $this->demo_calendars;
 	}
 	
@@ -151,27 +189,58 @@ class ChurchTools_Suite_Demo_Data_Provider {
 	}
 	
 	/**
-	 * Get demo events from database (v1.0.4.0)
+	 * Get demo events from database (v1.0.4.0, v1.0.7.1: Repository Factory + Demo mode filtering)
 	 *
 	 * Queries Events Repository for demo calendar events.
+	 * v1.0.7.1: Uses Repository Factory for user_id isolation.
+	 * If demo mode is OFF AND not in admin, returns empty array (no demo data visible on frontend).
+	 * Admin area (Daten-Seite) always shows data regardless of demo mode.
 	 *
 	 * @param array $args Query parameters
 	 * @return array Events from database or empty array if not available
 	 */
 	private function get_events_from_database( array $args ): array {
-		// Check if Events Repository is available
-		$repo_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-events-repository.php';
-		if ( ! file_exists( $repo_path ) ) {
+		// v1.0.7.1: Check if demo mode is active (only relevant for frontend/shortcodes)
+		$user_id = get_current_user_id();
+		$demo_mode = false;
+		
+		if ( class_exists( 'ChurchTools_Suite_User_Settings' ) ) {
+			$demo_mode = ChurchTools_Suite_User_Settings::is_demo_mode( $user_id );
+		}
+		
+		// v1.0.7.1: If demo mode is OFF AND not in admin area → hide data
+		// Admin area (Daten-Seite) always shows data for configuration/testing
+		if ( ! $demo_mode && ! is_admin() ) {
 			return [];
 		}
 		
-		require_once $repo_path;
-		
-		if ( ! class_exists( 'ChurchTools_Suite_Events_Repository' ) ) {
-			return [];
+		// v1.0.7.1: Use Repository Factory for user_id-based filtering
+		$factory_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-repository-factory.php';
+		if ( file_exists( $factory_path ) ) {
+			require_once $factory_path;
+			
+			if ( class_exists( 'ChurchTools_Suite_Repository_Factory' ) ) {
+				// Use factory to get user-specific repo
+				$repo = ChurchTools_Suite_Repository_Factory::get_events_repo( $user_id );
+			} else {
+				// Fallback: Standard repo without user_id
+				return [];
+			}
+		} else {
+			// Fallback: Standard repo (backwards compatibility)
+			$repo_path = CHURCHTOOLS_SUITE_PATH . 'includes/repositories/class-churchtools-suite-events-repository.php';
+			if ( ! file_exists( $repo_path ) ) {
+				return [];
+			}
+			
+			require_once $repo_path;
+			
+			if ( ! class_exists( 'ChurchTools_Suite_Events_Repository' ) ) {
+				return [];
+			}
+			
+			$repo = new ChurchTools_Suite_Events_Repository();
 		}
-		
-		$repo = new ChurchTools_Suite_Events_Repository();
 		
 		// Get demo calendars (1-6)
 		$demo_calendar_ids = [ '1', '2', '3', '4', '5', '6' ];
@@ -605,6 +674,18 @@ class ChurchTools_Suite_Demo_Data_Provider {
 		];
 		
 		return $tags[ $title ] ?? [];
+	}
+	
+	/**
+	 * Get raw demo calendars (v1.0.7.1)
+	 * 
+	 * Returns hardcoded demo calendars for seeding database.
+	 * Used by import_demo_data_for_user() to populate demo_cts_calendars.
+	 * 
+	 * @return array Array of calendar data arrays
+	 */
+	public function get_demo_calendars_raw(): array {
+		return $this->demo_calendars;
 	}
 	
 }
