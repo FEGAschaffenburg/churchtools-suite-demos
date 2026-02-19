@@ -857,6 +857,7 @@ return [ 'created' => $created ];
 					'location' => $location,
 					'startDate' => $start_datetime,
 					'endDate' => $end_datetime,
+					'imageUrl' => self::get_event_hero_image( $title ),
 				] ),
 			];
 			
@@ -910,6 +911,7 @@ return [ 'created' => $created ];
 					'location' => 'Gemeindezentrum',
 					'startDate' => date( 'Y-m-d', $fest_date ) . ' 11:00:00',
 					'endDate' => date( 'Y-m-d', $fest_date ) . ' 17:00:00',
+					'imageUrl' => self::get_event_hero_image( 'Gemeindefest' ),
 				] ),
 			];
 		}
@@ -947,11 +949,34 @@ return [ 'created' => $created ];
 					'location' => 'Gemeindezentrum',
 					'startDate' => date( 'Y-m-d', $alpha_date ) . ' 19:00:00',
 					'endDate' => date( 'Y-m-d', $alpha_date ) . ' 21:30:00',
+					'imageUrl' => self::get_event_hero_image( 'Alpha-Kurs' ),
 				] ),
 			];
 		}
 		
 		return $events;
+	}
+	
+	/**
+	 * Get hero image URL for event based on title
+	 *
+	 * Returns Unsplash image URLs (license: free, commercial use)
+	 *
+	 * @param string $title Event title
+	 * @return string Image URL
+	 */
+	private static function get_event_hero_image( string $title ): string {
+		$images = [
+			'Gottesdienst' => 'https://images.unsplash.com/photo-1438232992991-995b7058bbb3?w=1200&h=800&fit=crop', // Church interior with light
+			'Jugendabend' => 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&h=800&fit=crop', // Young people group
+			'Kindergottesdienst' => 'https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=1200&h=800&fit=crop', // Children playing
+			'Lobpreis-Probe' => 'https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=1200&h=800&fit=crop', // Guitar and microphone
+			'Hauskreis' => 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200&h=800&fit=crop', // People having discussion
+			'Gemeindefest' => 'https://images.unsplash.com/photo-1511578314322-379afb476865?w=1200&h=800&fit=crop', // Community gathering
+			'Alpha-Kurs' => 'https://images.unsplash.com/photo-1523580494863-6f3031224c94?w=1200&h=800&fit=crop', // People in discussion/learning
+		];
+		
+		return $images[ $title ] ?? 'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=1200&h=800&fit=crop'; // Default: community/church
 	}
 	
 	/**
