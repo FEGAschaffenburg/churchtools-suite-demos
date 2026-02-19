@@ -23,26 +23,36 @@
 	const viewTypes = (window.churchtoolsSuiteBlocks && churchtoolsSuiteBlocks.viewTypes) || [
 		{ label: __('Liste', 'churchtools-suite'), value: 'list' },
 		{ label: __('Grid', 'churchtools-suite'), value: 'grid' },
-		{ label: __('Kalender', 'churchtools-suite'), value: 'calendar' }
+		{ label: __('Kalender', 'churchtools-suite'), value: 'calendar' },
+		{ label: __('Countdown', 'churchtools-suite'), value: 'countdown' },
+		{ label: __('Karussell', 'churchtools-suite'), value: 'carousel' }
 	];
 	
 	/**
-	 * Available Views per Type
+	 * Available Views per Type (standardisiert mit deutschen Präfix-IDs)
+	 * Fallback: Wird normalerweise von PHP geladen (churchtoolsSuiteBlocks.views)
 	 */
 	const views = (window.churchtoolsSuiteBlocks && churchtoolsSuiteBlocks.views) || {
 		list: [
-			{ label: __('Classic', 'churchtools-suite'), value: 'classic' },
-			{ label: __('Classic mit Bildern', 'churchtools-suite'), value: 'classic-with-images' },
-			{ label: __('Minimal', 'churchtools-suite'), value: 'minimal' },
-			{ label: __('Modern', 'churchtools-suite'), value: 'modern' },
-			{ label: __('Tabelle', 'churchtools-suite'), value: 'table' }
+			{ label: __('Klassisch', 'churchtools-suite'), value: 'list-klassisch' },
+			{ label: __('Klassisch mit Bildern', 'churchtools-suite'), value: 'list-klassisch-mit-bildern' },
+			{ label: __('Minimal', 'churchtools-suite'), value: 'list-minimal' },
+			{ label: __('Modern', 'churchtools-suite'), value: 'list-modern' }
 		],
 		grid: [
-			{ label: __('Simple', 'churchtools-suite'), value: 'simple' },
-			{ label: __('Modern', 'churchtools-suite'), value: 'modern' }
+			{ label: __('Klassisch (Hero-Bild)', 'churchtools-suite'), value: 'grid-klassisch' },
+			{ label: __('Einfach (Alle Details)', 'churchtools-suite'), value: 'grid-einfach' },
+			{ label: __('Minimal (Kompakt)', 'churchtools-suite'), value: 'grid-minimal' },
+			{ label: __('Modern (Card-Style)', 'churchtools-suite'), value: 'grid-modern' }
 		],
 		calendar: [
-			{ label: __('Monat (Simple)', 'churchtools-suite'), value: 'monthly-simple' }
+			{ label: __('Monatlich (Einfach)', 'churchtools-suite'), value: 'calendar-monatlich-einfach' }
+		],
+		countdown: [
+			{ label: __('Klassisch (Split-Layout)', 'churchtools-suite'), value: 'countdown-klassisch' }
+		],
+		carousel: [
+			{ label: __('Klassisch (Swipe)', 'churchtools-suite'), value: 'carousel-klassisch' }
 		]
 	};
 	
@@ -203,10 +213,22 @@
 											// v0.9.8.7: Auto-reset view to first available when viewType changes
 											const newAvailableViews = views[value] || [];
 											const newView = newAvailableViews.length > 0 ? newAvailableViews[0].value : 'classic';
-											setAttributes({ 
+											
+											// v1.1.2.0: Initialize carousel-specific attributes when switching to carousel
+											const updates = { 
 												viewType: value,
 												view: newView
-											});
+											};
+											
+											if (value === 'carousel') {
+												// Only set carousel attributes if they're currently undefined
+												if (typeof attributes.slides_per_view === 'undefined') updates.slides_per_view = 3;
+												if (typeof attributes.autoplay === 'undefined') updates.autoplay = false;
+												if (typeof attributes.autoplay_delay === 'undefined') updates.autoplay_delay = 5000;
+												if (typeof attributes.loop === 'undefined') updates.loop = true;
+											}
+											
+											setAttributes(updates);
 										}
 									}),
 									el(SelectControl, {

@@ -201,6 +201,8 @@ class ChurchTools_Suite_Blocks {
 			'list' => ChurchTools_Suite_Template_Loader::get_view_options( 'list' ),
 			'grid' => ChurchTools_Suite_Template_Loader::get_view_options( 'grid' ),
 			'calendar' => ChurchTools_Suite_Template_Loader::get_view_options( 'calendar' ),
+			'countdown' => ChurchTools_Suite_Template_Loader::get_view_options( 'countdown' ),
+			'carousel' => ChurchTools_Suite_Template_Loader::get_view_options( 'carousel' ),
 		];
 
 		// Pass to editor
