@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.8+
- * Version:           1.1.0.2
+ * Version:           1.1.0.3
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
