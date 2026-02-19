@@ -134,8 +134,13 @@ class ChurchTools_Suite_Demo_Template_CPT {
 		$caps = [
 			'manage_cts_demo_pages',
 			'edit_cts_demo_page',
+			'edit_cts_demo_pages',              // Plural - WICHTIG!
 			'view_cts_demo_pages',
 			'delete_cts_demo_page',
+			'delete_cts_demo_pages',            // Plural - WICHTIG!
+			'publish_cts_demo_pages',           // Veröffentlichen - WICHTIG!
+			'edit_published_cts_demo_pages',    // Published bearbeiten - WICHTIG!
+			'delete_published_cts_demo_pages',  // Published löschen - WICHTIG!
 		];
 		
 		// Add to Administrator
