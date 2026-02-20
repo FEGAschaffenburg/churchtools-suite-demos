@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.8+
- * Version:           1.1.0.4
+ * Version:           1.1.0.6
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.1.0.4' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.1.0.6' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -71,6 +71,9 @@ class ChurchTools_Suite_Demo {
 	 * Constructor
 	 */
 	private function __construct() {
+		// Check for plugin updates (runs before init)
+		add_action( 'plugins_loaded', [ $this, 'check_for_updates' ], 5 );
+		
 		// Initialize plugin
 		add_action( 'plugins_loaded', [ $this, 'init' ] );
 		
@@ -93,6 +96,43 @@ class ChurchTools_Suite_Demo {
 				'Plugin-Abhängigkeit fehlt',
 				[ 'back_link' => true ]
 			);
+		}
+	}
+	
+	/**
+	 * Check for plugin updates and run update routines
+	 * 
+	 * Runs on every page load but only executes updates when version changes.
+	 * Updates existing demo users with new capabilities automatically.
+	 * 
+	 * @since 1.1.0.5
+	 */
+	public function check_for_updates(): void {
+		$installed_version = get_option( 'churchtools_suite_demo_version', '0.0.0' );
+		$current_version = CHURCHTOOLS_SUITE_DEMO_VERSION;
+		
+		// Version changed - run updates
+		if ( version_compare( $installed_version, $current_version, '<' ) ) {
+			
+			// Load CPT class if not loaded yet
+			if ( ! class_exists( 'ChurchTools_Suite_Demo_Template_CPT' ) ) {
+				require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-template-cpt.php';
+			}
+			
+			// Update capabilities for all demo users
+			ChurchTools_Suite_Demo_Template_CPT::add_capabilities();
+			
+			// Save new version
+			update_option( 'churchtools_suite_demo_version', $current_version );
+			
+			// Log update (only if WP_DEBUG is on)
+			if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+				error_log( sprintf(
+					'ChurchTools Demo: Updated from v%s to v%s - All demo user capabilities refreshed',
+					$installed_version,
+					$current_version
+				) );
+			}
 		}
 	}
 	

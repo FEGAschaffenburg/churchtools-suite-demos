@@ -132,8 +132,10 @@ class ChurchTools_Suite_Demo_Template_CPT {
 	 */
 	public static function add_capabilities(): void {
 		$caps = [
+			'read',                             // WordPress Core - ESSENTIELL!
 			'manage_cts_demo_pages',
 			'edit_cts_demo_page',
+			'read_cts_demo_page',               // Lesen einzelner Pages - WICHTIG!
 			'edit_cts_demo_pages',              // Plural - WICHTIG!
 			'view_cts_demo_pages',
 			'delete_cts_demo_page',
@@ -151,12 +153,47 @@ class ChurchTools_Suite_Demo_Template_CPT {
 			}
 		}
 		
-		// Add to cts_demo_user (already added in register_demo_role, but ensure it)
+		// Add to cts_demo_user role
 		$demo_user = get_role( 'cts_demo_user' );
 		if ( $demo_user ) {
 			foreach ( $caps as $cap ) {
 				$demo_user->add_cap( $cap );
 			}
+		}
+		
+		// Update ALL existing demo users with current capabilities
+		self::update_existing_demo_users_capabilities( $caps );
+	}
+	
+	/**
+	 * Update capabilities for all existing demo users
+	 * 
+	 * This ensures that when we add new capabilities to the role,
+	 * existing users get them too (not just new users)
+	 * 
+	 * @param array $caps Capabilities to add
+	 */
+	private static function update_existing_demo_users_capabilities( array $caps ): void {
+		$demo_users = get_users( [
+			'role'   => 'cts_demo_user',
+			'fields' => 'ID',
+		] );
+		
+		foreach ( $demo_users as $user_id ) {
+			$user = get_user_by( 'id', $user_id );
+			if ( $user ) {
+				foreach ( $caps as $cap ) {
+					$user->add_cap( $cap );
+				}
+			}
+		}
+		
+		// Log für Debugging (nur wenn WP_DEBUG aktiv)
+		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( sprintf(
+				'ChurchTools Demo: Updated capabilities for %d existing demo users',
+				count( $demo_users )
+			) );
 		}
 	}
 	
