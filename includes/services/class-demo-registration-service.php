@@ -656,29 +656,62 @@ class ChurchTools_Suite_Demo_Registration_Service {
 	 * @return bool Success
 	 */
 	private function send_admin_notification( int $demo_user_id, string $email, array $data ): bool {
-		$admin_email = get_option( 'admin_email' );
+		// Admin-Email fest auf plugin@feg-aschaffenburg.de
+		$admin_email = 'plugin@feg-aschaffenburg.de';
 		
-		if ( ! $admin_email ) {
-			return false;
-		}
-		
-		$subject = sprintf( __( 'Neue Demo-Registrierung - %s', 'churchtools-suite' ), get_bloginfo( 'name' ) );
+		$subject = sprintf( '🎉 Neue Demo-Registrierung #%d - ChurchTools Suite', $demo_user_id );
 		
 		$name = isset( $data['first_name'] ) && isset( $data['last_name'] ) 
 			? $data['first_name'] . ' ' . $data['last_name'] 
 			: ( $data['name'] ?? '-' );
 		
+		// HTML-formattierte E-Mail
 		$message = sprintf(
-			__( "Neue Demo-Registrierung:\n\nE-Mail: %s\nName: %s\nFirma/Gemeinde: %s\nZweck: %s\n\nRegistriert am: %s\n\nDer Benutzer muss seine E-Mail-Adresse noch verifizieren.", 'churchtools-suite' ),
-			$email,
-			$name,
-			$data['company'] ?? '-',
-			$data['purpose'] ?? '-',
-			current_time( 'Y-m-d H:i:s' )
+			"<html><body style='font-family: Arial, sans-serif; line-height: 1.6;'>" .
+			"<div style='max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;'>" .
+			"<div style='background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);'>" .
+			"<h2 style='color: #2563eb; margin-top: 0;'>🎉 Neue Demo-Registrierung</h2>" .
+			
+			"<div style='background: #eff6ff; padding: 20px; border-radius: 8px; margin: 20px 0;'>" .
+			"<table style='width: 100%%; border-collapse: collapse;'>" .
+			"<tr><td style='padding: 8px 0; font-weight: bold; width: 150px;'>👤 Name:</td><td style='padding: 8px 0;'>%s</td></tr>" .
+			"<tr><td style='padding: 8px 0; font-weight: bold;'>📧 E-Mail:</td><td style='padding: 8px 0;'><a href='mailto:%s' style='color: #2563eb;'>%s</a></td></tr>" .
+			"<tr><td style='padding: 8px 0; font-weight: bold;'>🏢 Firma/Gemeinde:</td><td style='padding: 8px 0;'>%s</td></tr>" .
+			"<tr><td style='padding: 8px 0; font-weight: bold;'>🎯 Verwendungszweck:</td><td style='padding: 8px 0;'>%s</td></tr>" .
+			"<tr><td style='padding: 8px 0; font-weight: bold;'>📅 Registriert am:</td><td style='padding: 8px 0;'>%s</td></tr>" .
+			"<tr><td style='padding: 8px 0; font-weight: bold;'>🆔 Demo User ID:</td><td style='padding: 8px 0;'>#%d</td></tr>" .
+			"</table>" .
+			"</div>" .
+			
+			"<div style='margin: 20px 0; padding: 15px; background: #dcfce7; border-left: 4px solid #16a34a; border-radius: 4px;'>" .
+			"<strong style='color: #16a34a;'>✅ Status:</strong> WordPress-Account wurde automatisch erstellt und verifiziert." .
+			"</div>" .
+			
+			"<div style='margin-top: 30px; padding-top: 20px; border-top: 2px solid #e5e7eb;'>" .
+			"<p style='margin: 10px 0;'><strong>📊 Admin-Panel:</strong></p>" .
+			"<a href='%s' style='display: inline-block; padding: 12px 24px; background: #2563eb; color: white; text-decoration: none; border-radius: 6px; font-weight: bold;'>→ Demo-Registrierungen verwalten</a>" .
+			"</div>" .
+			
+			"</div>" .
+			"<div style='text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px;'>" .
+			"<p>ChurchTools Suite Demo Plugin • %s</p>" .
+			"</div>" .
+			"</div>" .
+			"</body></html>",
+			esc_html( $name ),
+			esc_attr( $email ),
+			esc_html( $email ),
+			esc_html( $data['company'] ?? '-' ),
+			esc_html( $data['purpose'] ?? '-' ),
+			date_i18n( 'd.m.Y H:i', current_time( 'timestamp' ) ),
+			$demo_user_id,
+			admin_url( 'admin.php?page=churchtools-suite-demo' ),
+			get_bloginfo( 'name' )
 		);
 		
 		$headers = [
-			'Content-Type: text/plain; charset=UTF-8',
+			'Content-Type: text/html; charset=UTF-8',
+			'From: ChurchTools Suite <noreply@' . wp_parse_url( home_url(), PHP_URL_HOST ) . '>',
 		];
 		
 		return wp_mail( $admin_email, $subject, $message, $headers );
