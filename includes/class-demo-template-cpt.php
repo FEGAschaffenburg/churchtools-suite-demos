@@ -410,6 +410,12 @@ class ChurchTools_Suite_Demo_Template_CPT {
 						if ( $debug ) {
 							error_log( "[CTS Demo Debug] edit_post (own): {$post_type->cap->edit_posts}" );
 						}
+					} elseif ( user_can( $user_id, 'manage_options' ) ) {
+						// Administrator can edit all demo pages
+						$caps = [ $post_type->cap->edit_others_posts ];
+						if ( $debug ) {
+							error_log( "[CTS Demo Debug] edit_post (admin): {$post_type->cap->edit_others_posts}" );
+						}
 					} else {
 						// Someone else's post - not allowed for demo users
 						$caps = [ 'do_not_allow' ];
@@ -431,18 +437,24 @@ class ChurchTools_Suite_Demo_Template_CPT {
 					// Can delete own posts
 					$caps = [ $post_type->cap->delete_posts ];
 					if ( $debug ) {
-						error_log( "[CTS Demo Debug] delete_post: {$post_type->cap->delete_posts}" );
+						error_log( "[CTS Demo Debug] delete_post (own): {$post_type->cap->delete_posts}" );
+					}
+				} elseif ( user_can( $user_id, 'manage_options' ) ) {
+					// Administrator can delete all demo pages
+					$caps = [ $post_type->cap->delete_others_posts ];
+					if ( $debug ) {
+						error_log( "[CTS Demo Debug] delete_post (admin): {$post_type->cap->delete_others_posts}" );
 					}
 				} else {
 					$caps = [ 'do_not_allow' ];
 					if ( $debug ) {
-						error_log( "[CTS Demo Debug] delete_post: do_not_allow" );
+						error_log( "[CTS Demo Debug] delete_post (others): do_not_allow" );
 					}
 				}
 				break;
 				
 			case 'read_post':
-				if ( $post && ( $post->post_author == $user_id || current_user_can( 'manage_options' ) ) ) {
+				if ( $post && ( $post->post_author == $user_id || user_can( $user_id, 'manage_options' ) ) ) {
 					// Can read own posts or admin can read all
 					$caps = [ 'read' ];
 					if ( $debug ) {
