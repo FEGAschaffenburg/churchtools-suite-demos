@@ -1,7 +1,7 @@
 <?php
 /**
  * Plugin Name:       ChurchTools Suite Demo
- * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
+ * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite-demos
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.8+
  * Version:           1.1.1.0
  * Requires at least: 6.0
@@ -219,6 +219,10 @@ class ChurchTools_Suite_Demo {
 	 * Load plugin dependencies
 	 */
 	private function load_dependencies(): void {
+		// Auto-Updater (v1.1.1.0)
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-auto-updater.php';
+		ChurchTools_Suite_Demo_Auto_Updater::init();
+		
 		// Multi-user support (v1.0.6.0)
 		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-user-settings.php';
 		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-ct-client.php';
