@@ -211,8 +211,6 @@ class ChurchTools_Suite_Demo_Template_CPT {
 			}
 		}
 	}
-		}
-	}
 	
 	/**
 	 * Helper: Write to debug log
