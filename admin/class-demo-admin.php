@@ -56,12 +56,12 @@ class ChurchTools_Suite_Demo_Admin {
 	 * Add submenu page
 	 */
 	public function add_submenu(): void {
-		// Demo Users submenu
+		// Demo Users submenu (Admin only - v1.1.2.1)
 		add_submenu_page(
 			'edit.php?post_type=cts_demo_page',
 			'Demo-Registrierungen',
 			'Demo-Users',
-			'manage_churchtools_suite',
+			'manage_options', // Admin only (changed from manage_churchtools_suite)
 			'churchtools-suite-demo',
 			[ $this, 'render_admin_page' ]
 		);
