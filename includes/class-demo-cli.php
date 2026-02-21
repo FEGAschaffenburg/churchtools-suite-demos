@@ -203,4 +203,73 @@ class ChurchTools_Suite_Demo_CLI {
 			WP_CLI::success( 'Database is up to date' );
 		}
 	}
+	
+	/**
+	 * Fix administrator CPT capabilities
+	 * 
+	 * Ensures administrator role has all CPT capabilities for cts_demo_page.
+	 * Use this if admin cannot edit demo pages created by other users.
+	 * 
+	 * ## EXAMPLES
+	 * 
+	 *     # Fix admin capabilities
+	 *     $ wp cts-demo fix_admin_caps
+	 * 
+	 * @when after_wp_load
+	 */
+	public function fix_admin_caps( $args, $assoc_args ) {
+		WP_CLI::log( 'Fixing administrator CPT capabilities...' );
+		
+		// Define all CPT capabilities
+		$cpt_caps = [
+			'edit_cts_demo_pages',
+			'edit_others_cts_demo_pages',
+			'publish_cts_demo_pages',
+			'read_private_cts_demo_pages',
+			'delete_cts_demo_pages',
+			'delete_private_cts_demo_pages',
+			'delete_published_cts_demo_pages',
+			'delete_others_cts_demo_pages',
+			'edit_private_cts_demo_pages',
+			'edit_published_cts_demo_pages',
+			'edit_cts_demo_page',
+			'read_cts_demo_page',
+			'delete_cts_demo_page',
+			'manage_cts_demo_pages',
+		];
+		
+		// Get administrator role
+		$admin_role = get_role( 'administrator' );
+		
+		if ( ! $admin_role ) {
+			WP_CLI::error( 'Administrator role not found!' );
+		}
+		
+		$added = 0;
+		$existing = 0;
+		
+		foreach ( $cpt_caps as $cap ) {
+			$has_before = $admin_role->has_cap( $cap );
+			
+			if ( ! $has_before ) {
+				$admin_role->add_cap( $cap );
+				WP_CLI::log( "  + Added: {$cap}" );
+				$added++;
+			} else {
+				$existing++;
+			}
+		}
+		
+		WP_CLI::log( '' );
+		WP_CLI::log( "Total capabilities: " . count( $cpt_caps ) );
+		WP_CLI::log( "Already existing: {$existing}" );
+		WP_CLI::log( "Newly added: {$added}" );
+		WP_CLI::log( '' );
+		
+		if ( $added > 0 ) {
+			WP_CLI::success( "Fixed administrator capabilities! Added {$added} missing capabilities." );
+		} else {
+			WP_CLI::success( 'Administrator already has all CPT capabilities.' );
+		}
+	}
 }
