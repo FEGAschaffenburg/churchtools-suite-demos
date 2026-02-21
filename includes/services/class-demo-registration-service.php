@@ -275,7 +275,7 @@ class ChurchTools_Suite_Demo_Registration_Service {
 			'display_name' => $display_name,
 			'first_name' => $first_name,
 			'last_name' => $last_name,
-			'role' => 'cts_demo_user',
+			'role' => 'demo_tester',
 		] );
 		
 		if ( is_wp_error( $user_id ) ) {

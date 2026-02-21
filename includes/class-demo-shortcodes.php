@@ -123,17 +123,39 @@ class ChurchTools_Suite_Demo_Shortcodes {
 			] );
 		}
 		
-		// Auto-login user (no verification needed)
-		if ( ! empty( $result['wp_user_id'] ) && ! empty( $result['auto_login'] ) ) {
-			wp_set_auth_cookie( $result['wp_user_id'], true );
-			wp_set_current_user( $result['wp_user_id'] );
+		// Auto-login user using wp_signon (proper way for AJAX context)
+		if ( ! empty( $result['username'] ) && ! empty( $result['auto_login'] ) ) {
+			$creds = [
+				'user_login'    => $result['username'],
+				'user_password' => $data['password'],
+				'remember'      => true,
+			];
+			
+			$user = wp_signon( $creds, is_ssl() );
+			
+			if ( is_wp_error( $user ) ) {
+				// Login failed, but registration was successful
+				// Redirect to login page instead
+				wp_send_json_success( [
+					'message' => 'Registrierung erfolgreich! Bitte melden Sie sich jetzt an.',
+					'email' => $data['email'],
+					'redirect' => wp_login_url( admin_url( 'edit.php?post_type=cts_demo_page' ) ),
+				] );
+			}
+			
+			// Explicitly set current user and auth cookie for AJAX context
+			wp_set_current_user( $user->ID, $user->user_login );
+			wp_set_auth_cookie( $user->ID, true, is_ssl() );
+			
+			// Trigger login action
+			do_action( 'wp_login', $user->user_login, $user );
 		}
 		
-		// Success - redirect to ChurchTools Suite Dashboard
+		// Success - redirect to Demo Pages (not main dashboard, because demo users should see their pages)
 		wp_send_json_success( [
-			'message' => 'Registrierung erfolgreich! Sie werden zum ChurchTools Suite Dashboard weitergeleitet...',
+			'message' => 'Registrierung erfolgreich! Sie werden zu Ihren Demo-Seiten weitergeleitet...',
 			'email' => $data['email'],
-			'redirect' => admin_url( 'admin.php?page=churchtools-suite' ),
+			'redirect' => admin_url( 'edit.php?post_type=cts_demo_page' ),
 		] );
 	}
 	
@@ -145,18 +167,21 @@ class ChurchTools_Suite_Demo_Shortcodes {
 		
 		// Only enqueue on pages with shortcode
 		if ( is_a( $post, 'WP_Post' ) && has_shortcode( $post->post_content, 'cts_demo_register' ) ) {
+			// Use timestamp for cache busting during development
+			$version = CHURCHTOOLS_SUITE_DEMO_VERSION . '.' . time();
+			
 			wp_enqueue_style(
 				'cts-demo-registration',
 				CHURCHTOOLS_SUITE_DEMO_URL . 'assets/css/registration.css',
 				[],
-				CHURCHTOOLS_SUITE_DEMO_VERSION
+				$version
 			);
 			
 			wp_enqueue_script(
 				'cts-demo-registration',
 				CHURCHTOOLS_SUITE_DEMO_URL . 'assets/js/registration.js',
 				[ 'jquery' ],
-				CHURCHTOOLS_SUITE_DEMO_VERSION,
+				$version,
 				true
 			);
 			

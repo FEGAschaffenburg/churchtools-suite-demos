@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.8+
- * Version:           1.1.0.7
+ * Version:           1.1.1.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.1.0.7' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.1.1.0' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -263,95 +263,92 @@ class ChurchTools_Suite_Demo {
 	}
 	
 	/**
-	 * Register custom demo user role (v1.0.7.1: Added manage_churchtools_suite capability)
+	 * Register custom demo user role (v1.1.0.8: Complete rewrite with editor-like capabilities)
 	 * 
 	 * Demo User kann:
 	 * - ChurchTools Suite Dashboard ANSCHAUEN (READ-ONLY)
 	 * - Daten-Seite aufrufen (manage_churchtools_suite capability)
-	 * - Eigene Demo-Seiten (CPT) erstellen/bearbeiten/löschen
+	 * - Eigene Demo-Seiten (CPT) erstellen/bearbeiten/löschen (wie ein Editor)
+	 * - KEINE normalen Posts/Pages/Media bearbeiten
 	 * 
-	 * Demo User KANN NICHT:
-	 * - Einstellungen ändern (configure_churchtools_suite)
-	 * - Events synchronisieren (sync_churchtools_events)
-	 * - Kalender/Services konfigurieren (manage_churchtools_calendars)
-	 * - Andere User sehen
-	 * - Plugins/Themes verwalten
-	 * - Normale Posts/Pages sehen
-	 * - Dateien verwalten
+	 * NEUE STRATEGIE (v1.1.0.8):
+	 * Statt minimalistischer Capabilities → Editor-ähnliche Capabilities
+	 * aber nur für Demo-Pages. WordPress erwartet bestimmte Meta-Caps.
 	 */
 	private function register_demo_role(): void {
-		$role_exists = get_role( 'cts_demo_user' );
-		
-		// v1.0.7.1: Update existing role capabilities instead of removing
-		// (prevents user role reset on every page load)
-		if ( $role_exists ) {
-			// Add missing capability if not present
-			if ( ! $role_exists->has_cap( 'manage_churchtools_suite' ) ) {
-				$role_exists->add_cap( 'manage_churchtools_suite' );
-			}
-			return; // Role exists and is up-to-date
+		// v1.1.0.8: FORCE RE-CREATE role with new capabilities
+		// Remove old role first to ensure clean state
+		$old_role = get_role( 'cts_demo_user' );
+		if ( $old_role ) {
+			remove_role( 'cts_demo_user' );
 		}
 		
-		// Create role with EXTREMELY LIMITED capabilities:
-		// Demo users get ONLY what they need, nothing more
+		// Create NEW role with editor-like capabilities for demo pages
+		// This fixes ALL capability mapping issues
 		add_role(
 			'cts_demo_user',
 			'ChurchTools Demo User',
 			[
-				// === ABSOLUTE MINIMUM ===
-				'read' => true, // Can access admin area
+				// === CORE CAPABILITIES (must have for admin access) ===
+				'read' => true,
 				
 				// === ChurchTools Suite - READ-ONLY Dashboard ===
-				'manage_churchtools_suite' => true, // v1.0.7.1: Can VIEW menu + dashboard + Daten page
+				'manage_churchtools_suite' => true,
 				
-				// === NO ChurchTools modifications allowed ===
-				'view_churchtools_debug' => false,
-				'manage_churchtools_calendars' => false,
-				'configure_churchtools_suite' => false,
-				'sync_churchtools_events' => false,
-				'manage_churchtools_services' => false,
-				
-				// === Demo Pages (CPT) - FULL control on OWN pages ===
+				// === Demo Pages - FULL EDITOR CAPABILITIES ===
+				// These match what an "Editor" role has, but scoped to demo pages
 				'manage_cts_demo_pages' => true,
-				'edit_cts_demo_page' => true,
-				'delete_cts_demo_page' => true,
 				'edit_cts_demo_pages' => true,
-				'delete_cts_demo_pages' => true,
+				'edit_others_cts_demo_pages' => false,  // v1.1.0.8: CRITICAL - can't edit others
 				'publish_cts_demo_pages' => true,
-				'edit_published_cts_demo_pages' => true,     // WICHTIG: Veröffentlichte bearbeiten
-				'delete_published_cts_demo_pages' => true,   // WICHTIG: Veröffentlichte löschen
-				'view_cts_demo_pages' => true,
+				'read_private_cts_demo_pages' => true,
+				'delete_cts_demo_pages' => true,
+				'delete_private_cts_demo_pages' => true,
+				'delete_published_cts_demo_pages' => true,
+				'delete_others_cts_demo_pages' => false,
+				'edit_private_cts_demo_pages' => true,
+				'edit_published_cts_demo_pages' => true,
 				
-				// === NO access to standard WordPress content ===
-				'edit_posts' => false,           // NO Posts
-				'delete_posts' => false,
-				'publish_posts' => false,
-				'read_private_posts' => false,
-				'edit_private_posts' => false,
-				'delete_private_posts' => false,
+				// Singular forms (auto-mapped by WordPress)
+				'edit_cts_demo_page' => true,
+				'read_cts_demo_page' => true,
+				'delete_cts_demo_page' => true,
+				
+				// === STANDARD WORDPRESS - NO ACCESS ===
+				'edit_posts' => false,
 				'edit_others_posts' => false,
+				'edit_published_posts' => false,
+				'publish_posts' => false,
+				'delete_posts' => false,
 				'delete_others_posts' => false,
+				'delete_published_posts' => false,
+				'read_private_posts' => false,
 				
-				'edit_pages' => false,           // NO Pages
-				'delete_pages' => false,
-				'publish_pages' => false,
-				'read_private_pages' => false,
-				'edit_private_pages' => false,
-				'delete_private_pages' => false,
+				'edit_pages' => false,
 				'edit_others_pages' => false,
+				'edit_published_pages' => false,
+				'publish_pages' => false,
+				'delete_pages' => false,
 				'delete_others_pages' => false,
+				'delete_published_pages' => false,
+				'read_private_pages' => false,
 				
-				'upload_files' => false,         // NO Media
-				'delete_users' => false,         // NO User management
+				'upload_files' => false,
+				'manage_categories' => false,
+				'moderate_comments' => false,
+				'manage_links' => false,
+				
+				// === ADMIN CAPABILITIES - NO ACCESS ===
+				'manage_options' => false,
+				'manage_plugins' => false,
 				'edit_users' => false,
-				'manage_options' => false,       // NO Settings
-				'manage_plugins' => false,       // NO Plugins
-				'manage_themes' => false,        // NO Themes
-				'manage_categories' => false,    // NO Taxonomies
-				'manage_links' => false,         // NO Links
-				'moderate_comments' => false,    // NO Comments
+				'delete_users' => false,
+				'unfiltered_html' => false,
 			]
 		);
+		
+		// Log role creation
+		error_log( '[ChurchTools Demo] Demo user role created/updated with v1.1.0.8 capabilities' );
 	}
 	
 	/**

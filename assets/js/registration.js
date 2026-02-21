@@ -9,13 +9,19 @@
 	'use strict';
 	
 	$(document).ready(function() {
+		console.log('[CTS Demo Registration] Script loaded');
+		
 		const $form = $('#cts-demo-registration-form');
 		const $submitBtn = $form.find('.cts-submit-btn');
 		const $btnText = $submitBtn.find('.btn-text');
 		const $btnSpinner = $submitBtn.find('.btn-spinner');
 		const $message = $form.find('.cts-form-message');
 		
+		console.log('[CTS Demo Registration] Form found:', $form.length > 0);
+		console.log('[CTS Demo Registration] AJAX URL:', ctsDemo.ajaxUrl);
+		
 		$form.on('submit', function(e) {
+			console.log('[CTS Demo Registration] Form submitted');
 			e.preventDefault();
 			
 			// Clear previous message
@@ -47,20 +53,41 @@
 			};
 			
 			// Submit via AJAX
+			console.log('[CTS Demo Registration] Sending AJAX request...');
+			console.log('[CTS Demo Registration] Form data:', formData);
+			
 			$.ajax({
 				url: ctsDemo.ajaxUrl,
 				method: 'POST',
 				data: formData,
+				beforeSend: function() {
+					console.log('[CTS Demo Registration] AJAX beforeSend');
+				},
 				success: function(response) {
+					console.log('[CTS Demo Registration] AJAX success - Raw response:', response);
+					console.log('[CTS Demo Registration] Response type:', typeof response);
+					
 					if (response.success) {
 						showMessage('success', response.data.message);
 						$form[0].reset();
 						
 						// Auto-redirect to dashboard after successful registration
 						if (response.data.redirect) {
-							setTimeout(function() {
-								window.location.href = response.data.redirect;
-							}, 2000);
+							console.log('Redirecting to:', response.data.redirect);
+							
+							// Show countdown
+							let countdown = 3;
+							const countdownInterval = setInterval(function() {
+								countdown--;
+								if (countdown > 0) {
+									showMessage('success', response.data.message + ' Weiterleitung in ' + countdown + '...');
+								} else {
+									clearInterval(countdownInterval);
+									showMessage('success', 'Weiterleitung...');
+									console.log('Executing redirect now');
+									window.location.href = response.data.redirect;
+								}
+							}, 1000);
 						}
 						
 						// Scroll to message
@@ -72,6 +99,12 @@
 					}
 				},
 				error: function(xhr, status, error) {
+					console.error('[CTS Demo Registration] AJAX error');
+					console.error('[CTS Demo Registration] Status:', status);
+					console.error('[CTS Demo Registration] Error:', error);
+					console.error('[CTS Demo Registration] XHR:', xhr);
+					console.error('[CTS Demo Registration] Response text:', xhr.responseText);
+					
 					showMessage('error', 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.');
 					console.error('AJAX Error:', error);
 				},

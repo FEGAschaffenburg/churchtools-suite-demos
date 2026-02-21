@@ -49,7 +49,7 @@ class ChurchTools_Suite_Demo_Admin {
 	 */
 	public function add_submenu(): void {
 		add_submenu_page(
-			'churchtools-suite',
+			'edit.php?post_type=cts_demo_page',
 			'Demo-Registrierungen',
 			'Demo-Users',
 			'manage_churchtools_suite',
@@ -104,9 +104,9 @@ class ChurchTools_Suite_Demo_Admin {
 		}
 		
 		// Delete WP user if exists
-		if ( $demo_user->wp_user_id ) {
+		if ( $demo_user->wordpress_user_id ) {
 			require_once ABSPATH . 'wp-admin/includes/user.php';
-			wp_delete_user( $demo_user->wp_user_id );
+			wp_delete_user( $demo_user->wordpress_user_id );
 		}
 		
 		// Delete demo user

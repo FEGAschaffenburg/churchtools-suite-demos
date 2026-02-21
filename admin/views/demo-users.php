@@ -78,13 +78,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<?php endif; ?>
 						</td>
 						<td>
-							<?php if ( $user->wp_user_id ) : ?>
-								<?php $wp_user = get_userdata( $user->wp_user_id ); ?>
+							<?php if ( $user->wordpress_user_id ) : ?>
+								<?php $wp_user = get_userdata( $user->wordpress_user_id ); ?>
 								<?php if ( $wp_user ) : ?>
 									<span style="color: #16a34a;">✓ <?php echo esc_html( $wp_user->user_login ); ?></span>
-									<br><small style="color: #666;">(ID: <?php echo esc_html( $user->wp_user_id ); ?>)</small>
+									<br><small style="color: #666;">(ID: <?php echo esc_html( $user->wordpress_user_id ); ?>)</small>
 								<?php else : ?>
-									<span style="color: #dc2626;">✗ Gelöscht (ID: <?php echo esc_html( $user->wp_user_id ); ?>)</span>
+									<span style="color: #dc2626;">✗ Gelöscht (ID: <?php echo esc_html( $user->wordpress_user_id ); ?>)</span>
 								<?php endif; ?>
 							<?php else : ?>
 								<span style="color: #94a3b8;">− <?php esc_html_e( 'Nicht erstellt', 'churchtools-suite-demo' ); ?></span>
