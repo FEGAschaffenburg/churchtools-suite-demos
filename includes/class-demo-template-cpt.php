@@ -434,16 +434,28 @@ class ChurchTools_Suite_Demo_Template_CPT {
 				
 			case 'delete_post':
 				if ( $post && $post->post_author == $user_id ) {
-					// Can delete own posts
-					$caps = [ $post_type->cap->delete_posts ];
+					// Can delete own posts (status-specific)
+					if ( 'publish' === $post->post_status ) {
+						$caps = [ $post_type->cap->delete_published_posts ];
+					} elseif ( 'private' === $post->post_status ) {
+						$caps = [ $post_type->cap->delete_private_posts ];
+					} else {
+						$caps = [ $post_type->cap->delete_posts ];
+					}
 					if ( $debug ) {
-						error_log( "[CTS Demo Debug] delete_post (own): {$post_type->cap->delete_posts}" );
+						error_log( "[CTS Demo Debug] delete_post (own): " . json_encode( $caps ) );
 					}
 				} elseif ( user_can( $user_id, 'manage_options' ) ) {
-					// Administrator can delete all demo pages
-					$caps = [ $post_type->cap->delete_others_posts ];
+					// Administrator can delete all demo pages (status-specific)
+					if ( $post && 'publish' === $post->post_status ) {
+						$caps = [ $post_type->cap->delete_published_posts ];
+					} elseif ( $post && 'private' === $post->post_status ) {
+						$caps = [ $post_type->cap->delete_private_posts ];
+					} else {
+						$caps = [ $post_type->cap->delete_others_posts ];
+					}
 					if ( $debug ) {
-						error_log( "[CTS Demo Debug] delete_post (admin): {$post_type->cap->delete_others_posts}" );
+						error_log( "[CTS Demo Debug] delete_post (admin): " . json_encode( $caps ) );
 					}
 				} else {
 					$caps = [ 'do_not_allow' ];
