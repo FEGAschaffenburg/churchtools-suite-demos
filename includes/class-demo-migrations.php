@@ -17,7 +17,7 @@ class ChurchTools_Suite_Demo_Migrations {
 	/**
 	 * Current database schema version
 	 */
-	const DB_VERSION = '1.2';
+	const DB_VERSION = '1.3';
 	
 	/**
 	 * Option key for storing DB version
@@ -53,6 +53,10 @@ class ChurchTools_Suite_Demo_Migrations {
 		
 		if ( version_compare( $current_version, '1.2', '<' ) ) {
 			self::migrate_to_1_2();
+		}
+		
+		if ( version_compare( $current_version, '1.3', '<' ) ) {
+			self::migrate_to_1_3();
 		}
 		
 		// Update DB version
@@ -321,6 +325,57 @@ class ChurchTools_Suite_Demo_Migrations {
 		}
 		
 		error_log( '[ChurchTools Demo] Migration 1.2: Isolated demo tables created (demo_cts_events, demo_cts_calendars, demo_cts_services, demo_cts_event_services)' );
+	}
+	
+	/**
+	 * Migration 1.3: Migrate existing demo users to new role system
+	 * 
+	 * - Migrates users from old 'cts_demo_user' role to new 'demo_tester' role
+	 * - Ensures all demo_tester users have correct capabilities
+	 * - Cleans up old role if it exists
+	 * 
+	 * @since 1.1.1.1
+	 */
+	private static function migrate_to_1_3(): void {
+		// 1. Migrate users from old role 'cts_demo_user' to 'demo_tester'
+		$old_users = get_users( [ 'role' => 'cts_demo_user' ] );
+		$migrated_count = 0;
+		
+		foreach ( $old_users as $user ) {
+			$user->set_role( 'demo_tester' );
+			$migrated_count++;
+			error_log( sprintf(
+				'[ChurchTools Demo] Migration 1.3: Migrated user %s (ID: %d) from cts_demo_user to demo_tester',
+				$user->user_login,
+				$user->ID
+			) );
+		}
+		
+		if ( $migrated_count > 0 ) {
+			error_log( sprintf(
+				'[ChurchTools Demo] Migration 1.3: Migrated %d users from cts_demo_user to demo_tester',
+				$migrated_count
+			) );
+		}
+		
+		// 2. Remove old role if it exists
+		$old_role = get_role( 'cts_demo_user' );
+		if ( $old_role ) {
+			remove_role( 'cts_demo_user' );
+			error_log( '[ChurchTools Demo] Migration 1.3: Removed old cts_demo_user role' );
+		}
+		
+		// 3. Ensure all demo_tester users have correct capabilities
+		// Note: ensure_demo_user_role() runs on every init, so capabilities are auto-fixed
+		$demo_users = get_users( [ 'role' => 'demo_tester' ] );
+		if ( count( $demo_users ) > 0 ) {
+			error_log( sprintf(
+				'[ChurchTools Demo] Migration 1.3: Found %d demo_tester users (capabilities will be synced on next init)',
+				count( $demo_users )
+			) );
+		}
+		
+		error_log( '[ChurchTools Demo] Migration 1.3: User role migration completed' );
 	}
 	
 	/**

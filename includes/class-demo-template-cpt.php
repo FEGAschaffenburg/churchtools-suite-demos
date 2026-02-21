@@ -152,7 +152,35 @@ class ChurchTools_Suite_Demo_Template_CPT {
 	 * RESTRICTED: Only CPT capabilities + read + upload_files + ChurchTools access
 	 */
 	private static function ensure_demo_user_role(): void {
-		// Check if role already exists
+		// Define CPT-specific capabilities
+		$cpt_caps = [
+			'edit_cts_demo_pages',
+			'edit_others_cts_demo_pages',
+			'publish_cts_demo_pages',
+			'read_private_cts_demo_pages',
+			'delete_cts_demo_pages',
+			'delete_private_cts_demo_pages',
+			'delete_published_cts_demo_pages',
+			'delete_others_cts_demo_pages',
+			'edit_private_cts_demo_pages',
+			'edit_published_cts_demo_pages',
+			'edit_cts_demo_page',
+			'read_cts_demo_page',
+			'delete_cts_demo_page',
+			'manage_cts_demo_pages',
+		];
+		
+		// Ensure administrator has CPT capabilities
+		$admin_role = get_role( 'administrator' );
+		if ( $admin_role ) {
+			foreach ( $cpt_caps as $cap ) {
+				if ( ! $admin_role->has_cap( $cap ) ) {
+					$admin_role->add_cap( $cap );
+				}
+			}
+		}
+		
+		// Check if demo_tester role already exists
 		$role = get_role( 'demo_tester' );
 		
 		if ( ! $role ) {
@@ -176,28 +204,13 @@ class ChurchTools_Suite_Demo_Template_CPT {
 			$role->add_cap( 'manage_churchtools_suite' );
 		}
 		
-		// Add CPT-specific capabilities (always, in case they're missing)
+		// Add CPT-specific capabilities to demo_tester (always, in case they're missing)
 		if ( $role ) {
-			$cpt_caps = [
-				'edit_cts_demo_pages',
-				'edit_others_cts_demo_pages',
-				'publish_cts_demo_pages',
-				'read_private_cts_demo_pages',
-				'delete_cts_demo_pages',
-				'delete_private_cts_demo_pages',
-				'delete_published_cts_demo_pages',
-				'delete_others_cts_demo_pages',
-				'edit_private_cts_demo_pages',
-				'edit_published_cts_demo_pages',
-				'edit_cts_demo_page',
-				'read_cts_demo_page',
-				'delete_cts_demo_page',
-				'manage_cts_demo_pages',
-			];
-			
 			foreach ( $cpt_caps as $cap ) {
 				$role->add_cap( $cap );
 			}
+		}
+	}
 		}
 	}
 	
