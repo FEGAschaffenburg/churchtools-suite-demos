@@ -125,13 +125,44 @@ Get-ChildItem -Path $PluginDir -Recurse -File | ForEach-Object {
     }
 }
 
-# Create ZIP with proper internal structure
-Write-Host "Creating ZIP archive..."
+# Create ZIP with proper internal structure (WordPress requires forward slashes)
+Write-Host "Creating ZIP archive with WordPress-compatible paths..."
 if (Test-Path $OutputZip) { Remove-Item $OutputZip -Force }
 
 Add-Type -Assembly System.IO.Compression.FileSystem
 $compressionLevel = [System.IO.Compression.CompressionLevel]::Optimal
-[System.IO.Compression.ZipFile]::CreateFromDirectory($TempDir, $OutputZip, $compressionLevel, $false)
+$zipArchive = [System.IO.Compression.ZipFile]::Open($OutputZip, 'Create')
+
+try {
+    Get-ChildItem -Path $PluginDir -Recurse -File | ForEach-Object {
+        $relativePath = $_.FullName.Substring($PluginDir.Length + 1)
+        # WordPress requires forward slashes
+        $entryName = "churchtools-suite-demo/" + ($relativePath -replace '\\', '/')
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($zipArchive, $_.FullName, $entryName, $compressionLevel) | Out-Null
+    }
+} finally {
+    $zipArchive.Dispose()
+}
+
+# Validate ZIP structure
+Write-Host "Validating ZIP structure..."
+$zip = [System.IO.Compression.ZipFile]::OpenRead($OutputZip)
+$entries = $zip.Entries
+Write-Host "  Total entries: $($entries.Count)"
+
+# Check for backslashes
+$hasBackslashes = $entries | Where-Object { $_.FullName -like '*\*' }
+if ($hasBackslashes) {
+    Write-Host "  ERROR: Found backslashes in ZIP paths!" -ForegroundColor Red
+    $hasBackslashes | Select-Object -First 3 | ForEach-Object { Write-Host "    $($_.FullName)" -ForegroundColor Red }
+    $zip.Dispose()
+    Remove-Item $OutputZip -Force
+    Remove-Item -Recurse -Force $TempDir
+    throw "ZIP validation failed: Contains backslashes"
+} else {
+    Write-Host "  SUCCESS: All paths use forward slashes (WordPress compatible)" -ForegroundColor Green
+}
+$zip.Dispose()
 
 # Cleanup
 Remove-Item -Recurse -Force $TempDir
