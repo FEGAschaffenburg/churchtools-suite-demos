@@ -119,6 +119,28 @@ $demo_user_limit = get_option( 'cts_demo_user_limit', 0 ); // 0 = unlimited
 				</td>
 			</tr>
 			
+			<!-- BCC Email -->
+			<tr>
+				<th scope="row">
+					<label for="bcc_email">
+						<?php _e( 'BCC E-Mail-Adresse', 'churchtools-suite-demo' ); ?>
+					</label>
+				</th>
+				<td>
+					<input 
+						type="email" 
+						id="bcc_email" 
+						name="bcc_email" 
+						value="<?php echo esc_attr( get_option( 'cts_demo_bcc_email', '' ) ); ?>" 
+						class="regular-text"
+						placeholder="beispiel@domain.de"
+					/>
+					<p class="description">
+						<?php _e( 'Optional: E-Mail-Adresse für BCC bei neuen Registrierungen (zusätzlich zur Haupt-Admin-E-Mail)', 'churchtools-suite-demo' ); ?>
+					</p>
+				</td>
+			</tr>
+			
 		</table>
 		
 		<?php submit_button( __( 'Einstellungen speichern', 'churchtools-suite-demo' ) ); ?>
@@ -191,7 +213,8 @@ jQuery(document).ready(function($) {
 				demo_duration: $('#demo_duration').val(),
 				auto_cleanup: $('#auto_cleanup').is(':checked') ? 1 : 0,
 				admin_notifications: $('#admin_notifications').is(':checked') ? 1 : 0,
-				demo_user_limit: $('#demo_user_limit').val()
+				demo_user_limit: $('#demo_user_limit').val(),
+				bcc_email: $('#bcc_email').val()
 			},
 			success: function(response) {
 				if (response.success) {

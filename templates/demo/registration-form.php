@@ -9,6 +9,9 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+// Get demo duration from settings
+$demo_duration_days = (int) get_option( 'cts_demo_duration_days', 30 );
 ?>
 
 <div class="cts-demo-registration">
@@ -83,7 +86,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</span>
 			</label>
 			<p class="cts-privacy-note">
-				Ihre Daten werden nur für die Demo-Registrierung verwendet und nach 30 Tagen automatisch gelöscht.
+				Ihre Daten werden nur für die Demo-Registrierung verwendet und nach <?php echo esc_html( $demo_duration_days ); ?> Tagen automatisch gelöscht.
 			</p>
 		</div>
 		

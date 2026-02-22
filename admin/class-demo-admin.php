@@ -50,6 +50,9 @@ class ChurchTools_Suite_Demo_Admin {
 		add_action( 'wp_ajax_cts_demo_get_version_history', [ $this, 'ajax_get_version_history' ] );
 		add_action( 'wp_ajax_cts_demo_run_migrations', [ $this, 'ajax_run_migrations' ] );
 		add_action( 'wp_ajax_cts_demo_migrate_users', [ $this, 'ajax_migrate_users' ] );
+		
+		// Register AJAX handlers (Cron - v1.1.4.0)
+		add_action( 'wp_ajax_cts_demo_run_cleanup', [ $this, 'ajax_run_cleanup' ] );
 	}
 	
 	/**
@@ -263,7 +266,7 @@ class ChurchTools_Suite_Demo_Admin {
 	}
 	
 	/**
-	 * AJAX: Save configuration (v1.1.2.0)
+	 * AJAX: Save configuration (v1.1.4.0: Added BCC email and cron schedule update)
 	 */
 	public function ajax_save_config(): void {
 		check_ajax_referer( 'cts_demo_save_config', 'nonce' );
@@ -276,11 +279,17 @@ class ChurchTools_Suite_Demo_Admin {
 		$auto_cleanup = isset( $_POST['auto_cleanup'] ) ? (bool) $_POST['auto_cleanup'] : false;
 		$admin_notifications = isset( $_POST['admin_notifications'] ) ? (bool) $_POST['admin_notifications'] : false;
 		$demo_user_limit = isset( $_POST['demo_user_limit'] ) ? absint( $_POST['demo_user_limit'] ) : 0;
+		$bcc_email = isset( $_POST['bcc_email'] ) ? sanitize_email( $_POST['bcc_email'] ) : '';
 		
 		update_option( 'cts_demo_duration_days', $demo_duration );
 		update_option( 'cts_demo_auto_cleanup', $auto_cleanup );
 		update_option( 'cts_demo_admin_notifications', $admin_notifications );
 		update_option( 'cts_demo_user_limit', $demo_user_limit );
+		update_option( 'cts_demo_bcc_email', $bcc_email );
+		
+		// Update cron schedule based on auto_cleanup setting
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-cron.php';
+		ChurchTools_Suite_Demo_Cron::update_cleanup_schedule();
 		
 		wp_send_json_success( [ 'message' => 'Einstellungen erfolgreich gespeichert' ] );
 	}
@@ -446,8 +455,27 @@ class ChurchTools_Suite_Demo_Admin {
 		}
 		
 		wp_send_json_success( [
-			'message' => 'Benutzer erfolgreich migriert',
+			'message' => sprintf( '%d Benutzer erfolgreich migriert', $migrated ),
 			'migrated' => $migrated,
+		] );
+	}
+	
+	/**
+	 * AJAX: Run cleanup manually (v1.1.4.0)
+	 */
+	public function ajax_run_cleanup(): void {
+		check_ajax_referer( 'cts_demo_admin', 'nonce' );
+		
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_send_json_error( [ 'message' => 'Keine Berechtigung' ] );
+		}
+		
+		// Run cleanup
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-cron.php';
+		ChurchTools_Suite_Demo_Cron::cleanup_expired_demos();
+		
+		wp_send_json_success( [
+			'message' => 'Bereinigung erfolgreich ausgeführt. Prüfen Sie das Server-Log für Details.',
 		] );
 	}
 }

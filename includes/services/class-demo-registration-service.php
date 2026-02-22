@@ -604,14 +604,18 @@ class ChurchTools_Suite_Demo_Registration_Service {
 			'token' => $token,
 		], home_url( '/' ) );
 		
+		$demo_duration_days = (int) get_option( 'cts_demo_duration_days', 30 );
+		
 		$subject = sprintf( __( 'Verifizieren Sie Ihre Demo-Registrierung - %s', 'churchtools-suite' ), get_bloginfo( 'name' ) );
 		
 		$greeting = ! empty( $first_name ) ? sprintf( __( 'Hallo %s,', 'churchtools-suite' ), $first_name ) : __( 'Hallo,', 'churchtools-suite' );
 		
 		$message = sprintf(
-			__( "%s\n\nvielen Dank für Ihre Registrierung für die ChurchTools Suite Demo!\n\nBitte verifizieren Sie Ihre E-Mail-Adresse, indem Sie auf den folgenden Link klicken:\n\n%s\n\nDieser Link ist 7 Tage gültig.\n\nNach der Verifizierung erhalten Sie eine separate E-Mail mit Ihren Zugangsdaten zum WordPress-Backend.\n\nHinweis: Ihr Demo-Zugang ist 7 Tage gültig und wird dann automatisch deaktiviert.\n\nViel Spaß beim Erkunden!\n\nMit freundlichen Grüßen\nIhr ChurchTools Suite Team", 'churchtools-suite' ),
+			__( "%s\n\nvielen Dank für Ihre Registrierung für die ChurchTools Suite Demo!\n\nBitte verifizieren Sie Ihre E-Mail-Adresse, indem Sie auf den folgenden Link klicken:\n\n%s\n\nDieser Link ist %d Tage gültig.\n\nNach der Verifizierung erhalten Sie eine separate E-Mail mit Ihren Zugangsdaten zum WordPress-Backend.\n\nHinweis: Ihr Demo-Zugang ist %d Tage gültig und wird dann automatisch deaktiviert.\n\nViel Spaß beim Erkunden!\n\nMit freundlichen Grüßen\nIhr ChurchTools Suite Team", 'churchtools-suite' ),
 			$greeting,
-			$verification_url
+			$verification_url,
+			$demo_duration_days,
+			$demo_duration_days
 		);
 		
 		$headers = [
@@ -632,12 +636,15 @@ class ChurchTools_Suite_Demo_Registration_Service {
 	private function send_success_email( string $email, string $username, string $password ): bool {
 		$login_url = admin_url();
 		
+		$demo_duration_days = (int) get_option( 'cts_demo_duration_days', 30 );
+		
 		$subject = sprintf( __( 'Ihre Demo-Zugangsdaten - %s', 'churchtools-suite' ), get_bloginfo( 'name' ) );
 		
 		$message = sprintf(
-			__( "Herzlich willkommen!\n\nIhre E-Mail-Adresse wurde erfolgreich verifiziert. Sie können sich jetzt mit Ihrem gewählten Passwort anmelden:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔐 ZUGANGSDATEN\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nBenutzername: %s\nPasswort: [von Ihnen bei der Registrierung gewählt]\n\nLogin-URL: %s\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n⚠️ WICHTIG:\n• Ihr Demo-Zugang ist 7 Tage gültig\n• Sie können das ChurchTools Suite Plugin im Backend erkunden\n• Es stehen vorinstallierte Demo-Daten zur Verfügung\n\n📖 Anleitung:\nBesuchen Sie unsere Schnellstart-Anleitung für Tipps zur Nutzung:\nhttps://plugin.feg-aschaffenburg.de/schnellstart/\n\nViel Spaß beim Erkunden des Plugins!\n\nMit freundlichen Grüßen\nIhr ChurchTools Suite Team", 'churchtools-suite' ),
+			__( "Herzlich willkommen!\n\nIhre E-Mail-Adresse wurde erfolgreich verifiziert. Sie können sich jetzt mit Ihrem gewählten Passwort anmelden:\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🔐 ZUGANGSDATEN\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nBenutzername: %s\nPasswort: [von Ihnen bei der Registrierung gewählt]\n\nLogin-URL: %s\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n⚠️ WICHTIG:\n• Ihr Demo-Zugang ist %d Tage gültig\n• Sie können das ChurchTools Suite Plugin im Backend erkunden\n• Es stehen vorinstallierte Demo-Daten zur Verfügung\n\n📖 Anleitung:\nBesuchen Sie unsere Schnellstart-Anleitung für Tipps zur Nutzung:\nhttps://plugin.feg-aschaffenburg.de/schnellstart/\n\nViel Spaß beim Erkunden des Plugins!\n\nMit freundlichen Grüßen\nIhr ChurchTools Suite Team", 'churchtools-suite' ),
 			$username,
-			$login_url
+			$login_url,
+			$demo_duration_days
 		);
 		
 		$headers = [
@@ -648,7 +655,7 @@ class ChurchTools_Suite_Demo_Registration_Service {
 	}
 	
 	/**
-	 * Send admin notification
+	 * Send admin notification (v1.1.4.0: Added BCC support)
 	 *
 	 * @param int    $demo_user_id Demo user ID
 	 * @param string $email        User email
@@ -713,6 +720,12 @@ class ChurchTools_Suite_Demo_Registration_Service {
 			'Content-Type: text/html; charset=UTF-8',
 			'From: ChurchTools Suite <noreply@' . wp_parse_url( home_url(), PHP_URL_HOST ) . '>',
 		];
+		
+		// BCC hinzufügen wenn konfiguriert
+		$bcc_email = get_option( 'cts_demo_bcc_email', '' );
+		if ( ! empty( $bcc_email ) && is_email( $bcc_email ) ) {
+			$headers[] = 'Bcc: ' . $bcc_email;
+		}
 		
 		return wp_mail( $admin_email, $subject, $message, $headers );
 	}

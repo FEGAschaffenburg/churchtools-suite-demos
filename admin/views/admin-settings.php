@@ -27,6 +27,10 @@ $tabs = [
 		'label' => 'Konfiguration',
 		'icon' => 'admin-settings',
 	],
+	'cron' => [
+		'label' => 'Cron-Jobs',
+		'icon' => 'clock',
+	],
 	'updates' => [
 		'label' => 'Updates',
 		'icon' => 'update',
@@ -67,6 +71,9 @@ $tabs = [
 		switch ( $current_tab ) {
 			case 'configuration':
 				include CHURCHTOOLS_SUITE_DEMO_PATH . 'admin/views/tab-configuration.php';
+				break;
+			case 'cron':
+				include CHURCHTOOLS_SUITE_DEMO_PATH . 'admin/views/tab-cron.php';
 				break;
 			case 'updates':
 				include CHURCHTOOLS_SUITE_DEMO_PATH . 'admin/views/tab-updates.php';

@@ -3,7 +3,7 @@
  * Plugin Name:       ChurchTools Suite Demo
  * Plugin URI:        https://github.com/FEGAschaffenburg/churchtools-suite-demos
  * Description:       Demo-Addon für ChurchTools Suite - Self-Service Demo Registration mit Backend-Zugang. Erfordert ChurchTools Suite v1.0.8+
- * Version:           1.1.3.0
+ * Version:           1.1.4.0
  * Requires at least: 6.0
  * Requires PHP:      8.0
  * Requires Plugins:  churchtools-suite
@@ -25,7 +25,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Define plugin constants
-define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.1.3.0' );
+define( 'CHURCHTOOLS_SUITE_DEMO_VERSION', '1.1.4.0' );
 define( 'CHURCHTOOLS_SUITE_DEMO_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CHURCHTOOLS_SUITE_DEMO_URL', plugin_dir_url( __FILE__ ) );
 
@@ -225,6 +225,11 @@ class ChurchTools_Suite_Demo {
 		// Auto-Updater (v1.1.1.0)
 		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-auto-updater.php';
 		ChurchTools_Suite_Demo_Auto_Updater::init();
+		
+		// Cron System (v1.1.4.0)
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-cron.php';
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-cron-display.php';
+		ChurchTools_Suite_Demo_Cron::init();
 		
 		// Multi-user support (v1.0.6.0)
 		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-user-settings.php';
@@ -435,43 +440,17 @@ class ChurchTools_Suite_Demo {
 	}
 	
 	/**
-	 * Register cron jobs
+	 * Register cron jobs (v1.1.4.0: Separated demo seeding from cleanup)
 	 */
 	private function register_cron_jobs(): void {
-		// Schedule daily cleanup if not already scheduled
-		if ( ! wp_next_scheduled( 'cts_demo_cleanup' ) ) {
-			wp_schedule_event( time(), 'daily', 'cts_demo_cleanup' );
-		}
-
-		// Schedule daily demo event seeding to ensure future events are present
+		// Schedule new cleanup/notification jobs via Cron system
+		ChurchTools_Suite_Demo_Cron::schedule_jobs();
+		
+		// Schedule demo event seeding (separate from cleanup)
 		if ( ! wp_next_scheduled( 'cts_demo_seed_events' ) ) {
 			wp_schedule_event( time(), 'daily', 'cts_demo_seed_events' );
 		}
-		
-		// Register cleanup action
-		add_action( 'cts_demo_cleanup', [ $this, 'run_cleanup' ] );
-
-		// Register demo seeding action
 		add_action( 'cts_demo_seed_events', [ $this, 'seed_demo_events' ] );
-	}
-	
-	/**
-	 * Run cleanup job
-	 */
-	public function run_cleanup(): void {
-		// Delete unverified users older than 7 days
-		$unverified_deleted = $this->demo_users_repo->delete_unverified_older_than( 7 );
-		
-		// Delete verified users older than 30 days
-		$verified_deleted = $this->demo_users_repo->delete_verified_older_than( 30 );
-		
-		// Log cleanup
-		if ( class_exists( 'ChurchTools_Suite_Logger' ) ) {
-			ChurchTools_Suite_Logger::log( 'demo_cleanup', 'Cleanup completed', [
-				'unverified_deleted' => $unverified_deleted,
-				'verified_deleted' => $verified_deleted,
-			] );
-		}
 	}
 
 	/**
@@ -603,7 +582,7 @@ class ChurchTools_Suite_Demo {
 	}
 	
 	/**
-	 * Plugin activation
+	 * Plugin activation (v1.1.4.0: Added cron scheduling)
 	 */
 	public function activate(): void {
 		// Create database tables
@@ -615,18 +594,26 @@ class ChurchTools_Suite_Demo {
 		// Create default demo user if it doesn't exist
 		$this->create_demo_user();
 		
+		// Schedule cron jobs
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-cron.php';
+		ChurchTools_Suite_Demo_Cron::schedule_jobs();
+		
 		// Flush rewrite rules
 		flush_rewrite_rules();
 	}
 	
 	/**
-	 * Plugin deactivation
+	 * Plugin deactivation (v1.1.4.0: Added new cron cleanup)
 	 */
 	public function deactivate(): void {
-		// Clear scheduled cron jobs
-		$timestamp = wp_next_scheduled( 'cts_demo_cleanup' );
+		// Clear new cron jobs
+		require_once CHURCHTOOLS_SUITE_DEMO_PATH . 'includes/class-demo-cron.php';
+		ChurchTools_Suite_Demo_Cron::clear_jobs();
+		
+		// Clear old demo seeding job
+		$timestamp = wp_next_scheduled( 'cts_demo_seed_events' );
 		if ( $timestamp ) {
-			wp_unschedule_event( $timestamp, 'cts_demo_cleanup' );
+			wp_unschedule_event( $timestamp, 'cts_demo_seed_events' );
 		}
 		
 		// Flush rewrite rules
